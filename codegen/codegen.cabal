@@ -34,8 +34,12 @@ executable codegen
 library
   import:          base, ghc-options
   hs-source-dirs:  src
-  exposed-modules: Explore
+  exposed-modules:
+    Explore
+    HeaderExtract.EnumW32
+
   build-depends:
     , language-c
     , pretty-simple
     , text
+    , vector
