@@ -26,4 +26,6 @@ common ghc-options
 
 library
   import:         base, ghc-options
-  hs-source-dirs: lib
+  include-dirs:   wgpu-native/ffi
+  c-sources:      src/cbits/surface.c
+  hs-source-dirs: src
