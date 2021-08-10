@@ -1,4 +1,8 @@
 module Main where
 
+import Explore (explore)
+
 main :: IO ()
-main = putStrLn "Hello, Haskell!"
+main = do
+  putStrLn "Start"
+  explore
