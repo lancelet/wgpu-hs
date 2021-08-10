@@ -37,6 +37,7 @@ library
   exposed-modules:
     Explore
     HeaderExtract.EnumW32
+    HeaderExtract.Struct
 
   build-depends:
     , language-c

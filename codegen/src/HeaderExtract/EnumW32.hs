@@ -15,8 +15,9 @@ module HeaderExtract.EnumW32
   ( -- * Types
     EnumW32 (EnumW32),
     Entry (Entry),
+
     -- * Functions
-    collect
+    collect,
   )
 where
 
@@ -26,11 +27,17 @@ import Data.Word (Word32)
 import qualified Language.C as C
 import qualified Language.C.Data.Ident as C
 
+-------------------------------------------------------------------------------
+-- Types
+
 -- | Enumeration containing Word32 entries.
 data EnumW32 = EnumW32 !Text [Entry] deriving (Eq, Show)
 
 -- | Entry in an enumeration.
 data Entry = Entry !Text !Word32 deriving (Eq, Show)
+
+-------------------------------------------------------------------------------
+-- Functions
 
 collect :: [C.CExternalDeclaration a] -> [EnumW32]
 collect = mapMaybe matchEnumW32
