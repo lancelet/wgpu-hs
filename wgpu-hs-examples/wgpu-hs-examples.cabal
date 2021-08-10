@@ -1,0 +1,31 @@
+cabal-version:      2.4
+name:               wgpu-hs-examples
+version:            0.1.0.0
+synopsis:           Examples
+description:        Examples for wgpu-us
+bug-reports:        https://github.com/lancelet/wgpu-hs/issues
+license:            BSD-3-Clause
+author:             Jonathan Merritt
+maintainer:         j.s.merritt@gmail.com
+copyright:          Copyright (C) 2021, Jonathan Merritt
+category:           Graphics
+extra-source-files: CHANGELOG.md
+
+source-repository head
+  type:     git
+  location: https://github.com/lancelet/wgpu-hs.git
+
+common base
+  default-language: Haskell2010
+  build-depends:    base ^>=4.14.0.0
+
+common ghc-options
+  ghc-options:
+    -Wall -Wcompat -Wincomplete-record-updates
+    -Wincomplete-uni-patterns -Wredundant-constraints
+
+executable triangle
+  import:         base, ghc-options
+  main-is:        Main.hs
+  hs-source-dirs: app/triangle
+  build-depends:  wgpu-hs
