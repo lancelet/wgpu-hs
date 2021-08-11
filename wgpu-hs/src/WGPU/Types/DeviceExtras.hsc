@@ -1,30 +1,27 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 -- |
 
 module WGPU.Types.DeviceExtras where
 
 #include "wgpu.h"
 
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.Trans.Cont (ContT (ContT), evalContT)
+import Data.Kind (Type)
 import Data.Text (Text)
-import qualified Data.Text as Text
-import Data.Word (Word32)
 import Foreign
-  (
-    Ptr,
-    Storable,
-    alignment,
-    peek,
-    peekByteOff,
-    plusPtr,
-    poke,
-    sizeOf,
-  )
-import Foreign.C.String (peekCString)
-import WGPU.Types.Chain (Chain, CanChain)
+import Foreign.C.String
+import WGPU.Chain
 import WGPU.Types.NativeFeature (NativeFeature(NativeFeature))
+import qualified Data.Text as Text
 
-data DeviceExtras = DeviceExtras (es :: [Type])
-  { chain                                     :: !Chain es,
+data DeviceExtras (es :: [Type]) = DeviceExtras
+  { chain                                     :: !(Chain es),
     maxTextureDimension1D                     :: !Word32,
     maxTextureDimension2D                     :: !Word32,
     maxTextureDimension3D                     :: !Word32,
@@ -36,18 +33,18 @@ data DeviceExtras = DeviceExtras (es :: [Type])
     label                                     :: !Text,
     tracePath                                 :: !Text
   }
-  deriving (Eq, Show)
 
-instance Chainable DeviceExtras where
-  attachChain x s = s { chain = newChainPtr x }
+instance HasChainPtr (DeviceExtras es) where
+  peekChainPtr ptr = (#peek WGPUDeviceExtras, chain) ptr
+  pokeChainPtr = undefined
 
-instance Storable DeviceExtras where
+instance (PeekChain es, PokeChain es) => Storable (DeviceExtras es) where
 
   sizeOf _ = (#size WGPUDeviceExtras)
   alignment = sizeOf
 
   peek ptr = do
-    chain                                     <- pure nullChainPtr
+    chain                                     <- peekChain $ (#ptr WGPUDeviceExtras, chain) ptr
     maxTextureDimension1D                     <- (#peek WGPUDeviceExtras, maxTextureDimension1D) ptr
     maxTextureDimension2D                     <- (#peek WGPUDeviceExtras, maxTextureDimension2D) ptr
     maxTextureDimension3D                     <- (#peek WGPUDeviceExtras, maxTextureDimension3D) ptr
@@ -64,9 +61,22 @@ instance Storable DeviceExtras where
       tracePath      = Text.pack c_tracePath
     pure $! DeviceExtras{..}
 
-  poke ptr DeviceExtras{..} = do
-    let
-      NativeFeature c_nativeFeatures = nativeFeatures
-    withChainItem chain $ c_chain ->
-    withCString (Text.unpack label) $ c_label -> do
-      withCString (Text.unpack tracePath) $ c_
+  poke ptr DeviceExtras{..} =
+    evalContT $ do
+      let
+        NativeFeature c_nativeFeatures = nativeFeatures
+      -- TODO: this will break - cstrings don't live long enough
+      c_label      <- ContT $ withCString (Text.unpack label)
+      c_tracePath  <- ContT $ withCString (Text.unpack tracePath)
+      (_, c_chain) <- ContT $ withChain chain
+      lift $ (#poke WGPUDeviceExtras, chain) ptr c_chain
+      lift $ (#poke WGPUDeviceExtras, maxTextureDimension1D) ptr maxTextureDimension1D
+      lift $ (#poke WGPUDeviceExtras, maxTextureDimension2D) ptr maxTextureDimension2D
+      lift $ (#poke WGPUDeviceExtras, maxTextureDimension3D) ptr maxTextureDimension3D
+      lift $ (#poke WGPUDeviceExtras, maxBindGroups) ptr maxBindGroups
+      lift $ (#poke WGPUDeviceExtras, maxDynamicStorageBuffersPerPipelineLayout) ptr maxDynamicStorageBuffersPerPipelineLayout
+      lift $ (#poke WGPUDeviceExtras, maxStorageBuffersPerShaderStage) ptr maxStorageBuffersPerShaderStage
+      lift $ (#poke WGPUDeviceExtras, maxStorageBufferBindingSize) ptr maxStorageBufferBindingSize
+      lift $ (#poke WGPUDeviceExtras, nativeFeatures) ptr c_nativeFeatures
+      lift $ (#poke WGPUDeviceExtras, label) ptr c_label
+      lift $ (#poke WGPUDeviceExtras, tracePath) ptr c_tracePath
