@@ -43,10 +43,11 @@ library
   exposed-modules:
     WGPU
     WGPU.Chain
-    WGPU.Types.DeviceExtras
+    WGPU.CStruct
     WGPU.Types.ChainedStruct
-    WGPU.Types.SType
+    WGPU.Types.DeviceExtras
     WGPU.Types.NativeFeature
+    WGPU.Types.SType
 
   extra-libraries:   wgpu_native
 

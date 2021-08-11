@@ -27,6 +27,8 @@ import Foreign
     poke,
     sizeOf,
   )
+import WGPU.CStruct (CStruct)
+import qualified WGPU.CStruct as CStruct
 import WGPU.Types.ChainedStruct (ChainedStruct, STypeId)
 import qualified WGPU.Types.ChainedStruct as ChainedStruct
 
@@ -60,13 +62,13 @@ instance PokeChain '[] where
   withChain () action = action (0, nullPtr)
 
 instance
-  (Storable e, HasChainPtr e, HasSType e, PokeChain es) =>
+  (CStruct e, HasChainPtr e, HasSType e, PokeChain es) =>
   PokeChain (e : es)
   where
   withChain (e, es) action =
     evalContT $ do
       (tlId, tl) <- ContT $ withChain es
-      hd <- ContT $ withStorable e
+      hd <- ContT $ CStruct.withCStruct e
       cs <-
         ContT $
           withStorable $
@@ -87,13 +89,13 @@ instance PeekChain '[] where
   peekChain _ = pure ()
 
 instance
-  (Storable e, HasChainPtr e, HasSType e, PeekChain es) =>
+  (CStruct e, HasChainPtr e, HasSType e, PeekChain es) =>
   PeekChain (e : es)
   where
   peekChain ptr = do
     let hdPtr :: Ptr e
         hdPtr = castPtr ptr
-    hd <- peek @e hdPtr
+    hd <- CStruct.peekCStruct @e hdPtr
     csPtr <- peekChainPtr hdPtr
     cs <- peek @ChainedStruct csPtr
     let requiredSTypeId :: STypeId
@@ -106,6 +108,8 @@ instance
         )
     tl <- peekChain @es (castPtr (ChainedStruct.next cs))
     pure (hd, tl)
+
+class (PeekChain es, PokeChain es) => CStructChain es
 
 data MismatchedSTypeException = MismatchedSTypeException
   { sTypeId :: STypeId,

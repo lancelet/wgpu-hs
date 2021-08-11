@@ -19,6 +19,7 @@ import Foreign.C.String
 import WGPU.Chain
 import WGPU.Types.NativeFeature (NativeFeature(NativeFeature))
 import qualified Data.Text as Text
+import WGPU.CStruct
 
 data DeviceExtras (es :: [Type]) = DeviceExtras
   { chain                                     :: !(Chain es),
@@ -38,12 +39,12 @@ instance HasChainPtr (DeviceExtras es) where
   peekChainPtr ptr = (#peek WGPUDeviceExtras, chain) ptr
   pokeChainPtr = undefined
 
-instance (PeekChain es, PokeChain es) => Storable (DeviceExtras es) where
+instance (CStructChain es) => CStruct (DeviceExtras es) where
 
-  sizeOf _ = (#size WGPUDeviceExtras)
-  alignment = sizeOf
+  sizeOfCStruct _ = (#size WGPUDeviceExtras)
+  alignmentCStruct = sizeOfCStruct
 
-  peek ptr = do
+  peekCStruct ptr = do
     chain                                     <- peekChain $ (#ptr WGPUDeviceExtras, chain) ptr
     maxTextureDimension1D                     <- (#peek WGPUDeviceExtras, maxTextureDimension1D) ptr
     maxTextureDimension2D                     <- (#peek WGPUDeviceExtras, maxTextureDimension2D) ptr
@@ -61,22 +62,22 @@ instance (PeekChain es, PokeChain es) => Storable (DeviceExtras es) where
       tracePath      = Text.pack c_tracePath
     pure $! DeviceExtras{..}
 
-  poke ptr DeviceExtras{..} =
-    evalContT $ do
-      let
-        NativeFeature c_nativeFeatures = nativeFeatures
-      -- TODO: this will break - cstrings don't live long enough
-      c_label      <- ContT $ withCString (Text.unpack label)
-      c_tracePath  <- ContT $ withCString (Text.unpack tracePath)
-      (_, c_chain) <- ContT $ withChain chain
-      lift $ (#poke WGPUDeviceExtras, chain) ptr c_chain
-      lift $ (#poke WGPUDeviceExtras, maxTextureDimension1D) ptr maxTextureDimension1D
-      lift $ (#poke WGPUDeviceExtras, maxTextureDimension2D) ptr maxTextureDimension2D
-      lift $ (#poke WGPUDeviceExtras, maxTextureDimension3D) ptr maxTextureDimension3D
-      lift $ (#poke WGPUDeviceExtras, maxBindGroups) ptr maxBindGroups
-      lift $ (#poke WGPUDeviceExtras, maxDynamicStorageBuffersPerPipelineLayout) ptr maxDynamicStorageBuffersPerPipelineLayout
-      lift $ (#poke WGPUDeviceExtras, maxStorageBuffersPerShaderStage) ptr maxStorageBuffersPerShaderStage
-      lift $ (#poke WGPUDeviceExtras, maxStorageBufferBindingSize) ptr maxStorageBufferBindingSize
-      lift $ (#poke WGPUDeviceExtras, nativeFeatures) ptr c_nativeFeatures
-      lift $ (#poke WGPUDeviceExtras, label) ptr c_label
-      lift $ (#poke WGPUDeviceExtras, tracePath) ptr c_tracePath
+  withCStruct x@DeviceExtras{..} action =
+    allocaCStruct x $ \ptr ->
+      evalContT $ do
+        let NativeFeature c_nativeFeatures = nativeFeatures
+        c_label      <- ContT $ withCString (Text.unpack label)
+        c_tracePath  <- ContT $ withCString (Text.unpack tracePath)
+        (_, c_chain) <- ContT $ withChain chain
+        lift $ (#poke WGPUDeviceExtras, chain) ptr c_chain
+        lift $ (#poke WGPUDeviceExtras, maxTextureDimension1D)                     ptr maxTextureDimension1D
+        lift $ (#poke WGPUDeviceExtras, maxTextureDimension2D)                     ptr maxTextureDimension2D
+        lift $ (#poke WGPUDeviceExtras, maxTextureDimension3D)                     ptr maxTextureDimension3D
+        lift $ (#poke WGPUDeviceExtras, maxBindGroups)                             ptr maxBindGroups
+        lift $ (#poke WGPUDeviceExtras, maxDynamicStorageBuffersPerPipelineLayout) ptr maxDynamicStorageBuffersPerPipelineLayout
+        lift $ (#poke WGPUDeviceExtras, maxStorageBuffersPerShaderStage)           ptr maxStorageBuffersPerShaderStage
+        lift $ (#poke WGPUDeviceExtras, maxStorageBufferBindingSize)               ptr maxStorageBufferBindingSize
+        lift $ (#poke WGPUDeviceExtras, nativeFeatures)                            ptr c_nativeFeatures
+        lift $ (#poke WGPUDeviceExtras, label)                                     ptr c_label
+        lift $ (#poke WGPUDeviceExtras, tracePath)                                 ptr c_tracePath
+        lift $ action ptr
