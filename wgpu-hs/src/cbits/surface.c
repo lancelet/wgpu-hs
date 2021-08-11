@@ -1,6 +1,12 @@
-/* Surface handling */
+/* Surface handling
+ *
+ * Knowledge of how to handle surfaces was basically copied from:
+ *   https://github.com/gfx-rs/wgpu-native
+ * (Also licensed under BSD-3-Clause.)
+ */
 
-#ifndef WGPU_H
-#define WGPU_H
 #include "wgpu.h"
-#endif
+#include "SDL.h"
+
+#define WGPU_TARGET_MACOS 1
+

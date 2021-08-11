@@ -1,4 +1,3 @@
 packages:
-    ./codegen/codegen.cabal
     ./wgpu-hs/wgpu-hs.cabal
     ./wgpu-hs-examples/wgpu-hs-examples.cabal

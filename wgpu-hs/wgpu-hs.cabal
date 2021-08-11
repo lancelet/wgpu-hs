@@ -25,7 +25,19 @@ common ghc-options
     -Wincomplete-uni-patterns -Wredundant-constraints
 
 library
-  import:         base, ghc-options
-  include-dirs:   wgpu-native/ffi
-  c-sources:      src/cbits/surface.c
-  hs-source-dirs: src
+  import:            base, ghc-options
+  include-dirs:      wgpu-native/ffi
+  c-sources:
+    src/cbits/surface.c
+    src/cbits/wgpu-helpers.c
+
+  hs-source-dirs:    src
+  pkgconfig-depends: sdl2 >=2.0.6
+  build-depends:     sdl2
+  exposed-modules:   WGPU
+  extra-libraries:   wgpu_native
+
+  if os(osx)
+    c-sources:  src/cbits/surface-macos.m
+    cc-options: -DWGPU_TARGET=WGPU_TARGET_MACOS
+    frameworks: AppKit QuartzCore
