@@ -1,9 +1,11 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
@@ -108,8 +110,6 @@ instance
         )
     tl <- peekChain @es (castPtr (ChainedStruct.next cs))
     pure (hd, tl)
-
-class (PeekChain es, PokeChain es) => CStructChain es
 
 data MismatchedSTypeException = MismatchedSTypeException
   { sTypeId :: STypeId,

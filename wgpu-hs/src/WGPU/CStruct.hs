@@ -13,4 +13,8 @@ class CStruct a where
   withCStruct :: a -> (Ptr a -> IO b) -> IO b
 
 allocaCStruct :: (CStruct a) => a -> (Ptr a -> IO b) -> IO b
-allocaCStruct x = allocaBytesAligned (sizeOfCStruct x) (alignmentCStruct x)
+allocaCStruct x action = do
+  allocaBytesAligned
+    (sizeOfCStruct x)
+    (alignmentCStruct x)
+    action

@@ -19,6 +19,7 @@ pushd wgpu-native; make all; popd
 # provide links so cabal can find the wgpu-native libraries
 echo "extra-lib-dirs: $(pwd)/wgpu-native/target/debug" > cabal.project.local
 echo "extra-include-dirs: $(pwd)/wgpu-native/ffi" >> cabal.project.local
+echo "tests: True" >> cabal.project.local
 
 # build the project and test an example
 cabal build all

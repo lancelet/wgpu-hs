@@ -4,6 +4,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -- |
 
 module WGPU.Types.DeviceExtras where
@@ -20,9 +22,10 @@ import Foreign (peekByteOff, plusPtr,pokeByteOff)
 import Foreign.C.String (peekCString, withCString)
 import WGPU.CStruct (CStruct)
 import qualified WGPU.CStruct as CStruct
-import WGPU.Chain (Chain, HasChainPtr, CStructChain)
+import WGPU.Chain (Chain, HasChainPtr, PeekChain, PokeChain)
 import qualified WGPU.Chain as Chain
 import WGPU.Types.NativeFeature (NativeFeature(NativeFeature))
+import qualified WGPU.Types.NativeFeature as NativeFeature
 
 data DeviceExtras (es :: [Type]) = DeviceExtras
   { chain                                     :: !(Chain es),
@@ -38,11 +41,30 @@ data DeviceExtras (es :: [Type]) = DeviceExtras
     tracePath                                 :: !Text
   }
 
+deriving instance Eq (Chain es) => Eq (DeviceExtras es)
+deriving instance Show (Chain es) => Show (DeviceExtras es)
+
+def :: DeviceExtras '[]
+def =
+  let
+    chain                                     = ()
+    maxTextureDimension1D                     = 0
+    maxTextureDimension2D                     = 0
+    maxTextureDimension3D                     = 0
+    maxBindGroups                             = 0
+    maxDynamicStorageBuffersPerPipelineLayout = 0
+    maxStorageBuffersPerShaderStage           = 0
+    maxStorageBufferBindingSize               = 0
+    nativeFeatures                            = NativeFeature.NONE
+    label                                     = Text.empty
+    tracePath                                 = Text.empty
+  in DeviceExtras{..}
+
 instance HasChainPtr (DeviceExtras es) where
   peekChainPtr ptr = (#peek WGPUDeviceExtras, chain) ptr
-  pokeChainPtr = undefined
+  pokeChainPtr ptr c_chain = (#poke WGPUDeviceExtras, chain) ptr c_chain
 
-instance (CStructChain es) => CStruct (DeviceExtras es) where
+instance (PeekChain es, PokeChain es) => CStruct (DeviceExtras es) where
 
   sizeOfCStruct _ = (#size WGPUDeviceExtras)
   alignmentCStruct = CStruct.sizeOfCStruct
@@ -57,8 +79,8 @@ instance (CStructChain es) => CStruct (DeviceExtras es) where
     maxStorageBuffersPerShaderStage           <- (#peek WGPUDeviceExtras, maxStorageBuffersPerShaderStage) ptr
     maxStorageBufferBindingSize               <- (#peek WGPUDeviceExtras, maxStorageBufferBindingSize) ptr
     c_nativeFeatures                          <- (#peek WGPUDeviceExtras, nativeFeatures) ptr
-    c_label                                   <- peekCString $ (#ptr WGPUDeviceExtras, label) ptr
-    c_tracePath                               <- peekCString $ (#ptr WGPUDeviceExtras, tracePath) ptr
+    c_label                                   <- (#peek WGPUDeviceExtras, label) ptr >>= peekCString
+    c_tracePath                               <- (#peek WGPUDeviceExtras, tracePath) ptr >>= peekCString
     let
       nativeFeatures = NativeFeature c_nativeFeatures
       label          = Text.pack c_label

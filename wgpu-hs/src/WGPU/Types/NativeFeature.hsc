@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE PatternSynonyms #-}
 -- |
-module WGPU.Types.NativeFeature (NativeFeature(..)) where
+module WGPU.Types.NativeFeature where
 
 #include "wgpu.h"
 
@@ -11,6 +11,7 @@ import Foreign.C.Enum (enum)
 enum "NativeFeature"
   ''Word32
   [''Show, ''Read, ''Eq]
-  [ ("TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES",
+  [ ("NONE", 0),  -- not part of the C api
+    ("TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES",
      #{const WGPUNativeFeature_TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES})
   ]

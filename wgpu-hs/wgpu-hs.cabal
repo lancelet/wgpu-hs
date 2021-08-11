@@ -55,3 +55,14 @@ library
     c-sources:  src/cbits/surface-macos.m
     cc-options: -DWGPU_TARGET=WGPU_TARGET_MACOS
     frameworks: AppKit QuartzCore
+
+test-suite wgpu-hs-test
+  import:         base
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is:        Test.hs
+  other-modules:  WGPU.Types.DeviceExtrasTest
+  build-depends:
+    , hedgehog
+    , transformers
+    , wgpu-hs
