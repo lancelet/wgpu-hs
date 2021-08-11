@@ -13,13 +13,16 @@ module WGPU.Types.DeviceExtras where
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Cont (ContT (ContT), evalContT)
 import Data.Kind (Type)
+import Data.Word (Word32)
 import Data.Text (Text)
-import Foreign
-import Foreign.C.String
-import WGPU.Chain
-import WGPU.Types.NativeFeature (NativeFeature(NativeFeature))
 import qualified Data.Text as Text
-import WGPU.CStruct
+import Foreign (peekByteOff, plusPtr,pokeByteOff)
+import Foreign.C.String (peekCString, withCString)
+import WGPU.CStruct (CStruct)
+import qualified WGPU.CStruct as CStruct
+import WGPU.Chain (Chain, HasChainPtr, CStructChain)
+import qualified WGPU.Chain as Chain
+import WGPU.Types.NativeFeature (NativeFeature(NativeFeature))
 
 data DeviceExtras (es :: [Type]) = DeviceExtras
   { chain                                     :: !(Chain es),
@@ -42,10 +45,10 @@ instance HasChainPtr (DeviceExtras es) where
 instance (CStructChain es) => CStruct (DeviceExtras es) where
 
   sizeOfCStruct _ = (#size WGPUDeviceExtras)
-  alignmentCStruct = sizeOfCStruct
+  alignmentCStruct = CStruct.sizeOfCStruct
 
   peekCStruct ptr = do
-    chain                                     <- peekChain $ (#ptr WGPUDeviceExtras, chain) ptr
+    chain                                     <- Chain.peekChain $ (#ptr WGPUDeviceExtras, chain) ptr
     maxTextureDimension1D                     <- (#peek WGPUDeviceExtras, maxTextureDimension1D) ptr
     maxTextureDimension2D                     <- (#peek WGPUDeviceExtras, maxTextureDimension2D) ptr
     maxTextureDimension3D                     <- (#peek WGPUDeviceExtras, maxTextureDimension3D) ptr
@@ -63,12 +66,12 @@ instance (CStructChain es) => CStruct (DeviceExtras es) where
     pure $! DeviceExtras{..}
 
   withCStruct x@DeviceExtras{..} action =
-    allocaCStruct x $ \ptr ->
+    CStruct.allocaCStruct x $ \ptr ->
       evalContT $ do
         let NativeFeature c_nativeFeatures = nativeFeatures
         c_label      <- ContT $ withCString (Text.unpack label)
         c_tracePath  <- ContT $ withCString (Text.unpack tracePath)
-        (_, c_chain) <- ContT $ withChain chain
+        (_, c_chain) <- ContT $ Chain.withChain chain
         lift $ (#poke WGPUDeviceExtras, chain) ptr c_chain
         lift $ (#poke WGPUDeviceExtras, maxTextureDimension1D)                     ptr maxTextureDimension1D
         lift $ (#poke WGPUDeviceExtras, maxTextureDimension2D)                     ptr maxTextureDimension2D

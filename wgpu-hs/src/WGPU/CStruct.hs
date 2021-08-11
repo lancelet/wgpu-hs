@@ -1,8 +1,11 @@
 -- |
 module WGPU.CStruct where
 
-import Foreign
+import Foreign (Ptr, allocaBytesAligned)
 
+-- NOTE: The point of CStruct as opposed to Storable is that it doesn't have
+--       a `poke`. Instead, it has a `withCStruct`, which allows for cleanup
+--       of C strings, etc.
 class CStruct a where
   sizeOfCStruct :: a -> Int
   alignmentCStruct :: a -> Int
