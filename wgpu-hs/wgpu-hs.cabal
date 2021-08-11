@@ -26,15 +26,28 @@ common ghc-options
 
 library
   import:            base, ghc-options
-  include-dirs:      wgpu-native/ffi
   c-sources:
     src/cbits/surface.c
     src/cbits/wgpu-helpers.c
 
   hs-source-dirs:    src
   pkgconfig-depends: sdl2 >=2.0.6
-  build-depends:     sdl2
-  exposed-modules:   WGPU
+  build-depends:
+    , c-enum
+    , safe-exceptions
+    , sdl2
+    , text
+    , transformers
+
+  exposed-modules:
+    WGPU
+    WGPU.Chain
+    WGPU.Types.ChainedStruct
+    WGPU.Types.SType
+
+  -- WGPU.Types.Chainable
+  -- WGPU.Types.DeviceExtras
+  -- WGPU.Types.NativeFeature
   extra-libraries:   wgpu_native
 
   if os(osx)
