@@ -33,6 +33,7 @@ library
   hs-source-dirs:    src
   pkgconfig-depends: sdl2 >=2.0.6
   build-depends:
+    , bytestring
     , c-enum
     , safe-exceptions
     , sdl2
