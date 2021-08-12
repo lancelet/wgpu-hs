@@ -1,6 +1,6 @@
 #include "wgpu.h"
 
-void request_adapter_callback(WGPUAdapter received, void* userdata) {
+void wgpuhs_request_adapter_callback(WGPUAdapter received, void* userdata) {
   *(WGPUAdapter*)userdata = received;
 }
 
@@ -14,8 +14,12 @@ WGPUAdapter wgpuhs_request_compatible_adapter(WGPUSurface surface) {
   wgpuInstanceRequestAdapter(
     NULL,
     &request_adapter_options,
-    request_adapter_callback,
+    wgpuhs_request_adapter_callback,
     (void*)&adapter
   );
   return adapter;
+}
+
+void wgpuhs_request_device_callback(WGPUDevice received, void *userdata) {
+  *(WGPUDevice*)userdata = received;
 }

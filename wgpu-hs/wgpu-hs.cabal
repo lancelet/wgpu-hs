@@ -45,6 +45,7 @@ library
     WGPU.Chain
     WGPU.CStruct
     WGPU.Types.ChainedStruct
+    WGPU.Types.DeviceDescriptor
     WGPU.Types.DeviceExtras
     WGPU.Types.NativeFeature
     WGPU.Types.SType

@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 module Main where
 
@@ -16,8 +17,10 @@ main = do
     SDL.createWindow
       "Triangle"
       SDL.defaultWindow {SDL.windowInitialSize = V2 640 480}
+
   surface <- WGPU.createSurface window
-  adpater <- WGPU.requestCompatibleAdapter surface
+  adapter <- WGPU.requestCompatibleAdapter surface
+
   SDL.showWindow window
 
   let loop = do
