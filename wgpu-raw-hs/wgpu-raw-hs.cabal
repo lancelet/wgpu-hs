@@ -1,0 +1,129 @@
+cabal-version:      3.0
+name:               wgpu-raw-hs
+version:            0.1.0.0
+synopsis:           WGPU Raw
+description:        A very low-level WGPU binding.
+bug-reports:        https://github.com/lancelet/wgpu-hs/issues
+license:            BSD-3-Clause
+author:             Jonathan Merritt
+maintainer:         j.s.merritt@gmail.com
+copyright:          Copyright (C) Jonathan Merritt, 2021
+category:           Graphics
+extra-source-files: CHANGELOG.md
+
+common base
+  default-language: Haskell2010
+  build-depends:    base ^>=4.14.0.0
+
+common ghc-options
+  ghc-options:
+    -Wall -Wcompat -Wincomplete-record-updates
+    -Wincomplete-uni-patterns -Wredundant-constraints
+
+library
+  import:          base, ghc-options
+  hs-source-dirs:  src
+  exposed-modules:
+    WGPU.Raw.Generated.Enum.WGPUAdapterType
+    WGPU.Raw.Generated.Enum.WGPUAddressMode
+    WGPU.Raw.Generated.Enum.WGPUBackendType
+    WGPU.Raw.Generated.Enum.WGPUBlendFactor
+    WGPU.Raw.Generated.Enum.WGPUBlendOperation
+    WGPU.Raw.Generated.Enum.WGPUBufferBindingType
+    WGPU.Raw.Generated.Enum.WGPUBufferMapAsyncStatus
+    WGPU.Raw.Generated.Enum.WGPUBufferUsage
+    WGPU.Raw.Generated.Enum.WGPUColorWriteMask
+    WGPU.Raw.Generated.Enum.WGPUCompareFunction
+    WGPU.Raw.Generated.Enum.WGPUCreatePipelineAsyncStatus
+    WGPU.Raw.Generated.Enum.WGPUCullMode
+    WGPU.Raw.Generated.Enum.WGPUErrorFilter
+    WGPU.Raw.Generated.Enum.WGPUErrorType
+    WGPU.Raw.Generated.Enum.WGPUFilterMode
+    WGPU.Raw.Generated.Enum.WGPUFrontFace
+    WGPU.Raw.Generated.Enum.WGPUIndexFormat
+    WGPU.Raw.Generated.Enum.WGPUInputStepMode
+    WGPU.Raw.Generated.Enum.WGPULoadOp
+    WGPU.Raw.Generated.Enum.WGPULogLevel
+    WGPU.Raw.Generated.Enum.WGPUMapMode
+    WGPU.Raw.Generated.Enum.WGPUNativeFeature
+    WGPU.Raw.Generated.Enum.WGPUNativeSType
+    WGPU.Raw.Generated.Enum.WGPUPipelineStatisticName
+    WGPU.Raw.Generated.Enum.WGPUPresentMode
+    WGPU.Raw.Generated.Enum.WGPUPrimitiveTopology
+    WGPU.Raw.Generated.Enum.WGPUQueryType
+    WGPU.Raw.Generated.Enum.WGPUQueueWorkDoneStatus
+    WGPU.Raw.Generated.Enum.WGPUSamplerBindingType
+    WGPU.Raw.Generated.Enum.WGPUShaderStage
+    WGPU.Raw.Generated.Enum.WGPUStencilOperation
+    WGPU.Raw.Generated.Enum.WGPUStorageTextureAccess
+    WGPU.Raw.Generated.Enum.WGPUStoreOp
+    WGPU.Raw.Generated.Enum.WGPUSType
+    WGPU.Raw.Generated.Enum.WGPUTextureAspect
+    WGPU.Raw.Generated.Enum.WGPUTextureComponentType
+    WGPU.Raw.Generated.Enum.WGPUTextureDimension
+    WGPU.Raw.Generated.Enum.WGPUTextureFormat
+    WGPU.Raw.Generated.Enum.WGPUTextureSampleType
+    WGPU.Raw.Generated.Enum.WGPUTextureUsage
+    WGPU.Raw.Generated.Enum.WGPUTextureViewDimension
+    WGPU.Raw.Generated.Enum.WGPUVertexFormat
+    WGPU.Raw.Generated.Fun
+    WGPU.Raw.Generated.Struct.WGPUAdapterExtras
+    WGPU.Raw.Generated.Struct.WGPUAdapterProperties
+    WGPU.Raw.Generated.Struct.WGPUBindGroupDescriptor
+    WGPU.Raw.Generated.Struct.WGPUBindGroupEntry
+    WGPU.Raw.Generated.Struct.WGPUBindGroupLayoutDescriptor
+    WGPU.Raw.Generated.Struct.WGPUBindGroupLayoutEntry
+    WGPU.Raw.Generated.Struct.WGPUBlendComponent
+    WGPU.Raw.Generated.Struct.WGPUBlendState
+    WGPU.Raw.Generated.Struct.WGPUBufferBindingLayout
+    WGPU.Raw.Generated.Struct.WGPUBufferDescriptor
+    WGPU.Raw.Generated.Struct.WGPUChainedStruct
+    WGPU.Raw.Generated.Struct.WGPUColor
+    WGPU.Raw.Generated.Struct.WGPUColorTargetState
+    WGPU.Raw.Generated.Struct.WGPUCommandBufferDescriptor
+    WGPU.Raw.Generated.Struct.WGPUCommandEncoderDescriptor
+    WGPU.Raw.Generated.Struct.WGPUComputePassDescriptor
+    WGPU.Raw.Generated.Struct.WGPUComputePipelineDescriptor
+    WGPU.Raw.Generated.Struct.WGPUDepthStencilState
+    WGPU.Raw.Generated.Struct.WGPUDeviceDescriptor
+    WGPU.Raw.Generated.Struct.WGPUDeviceExtras
+    WGPU.Raw.Generated.Struct.WGPUExtent3D
+    WGPU.Raw.Generated.Struct.WGPUFragmentState
+    WGPU.Raw.Generated.Struct.WGPUImageCopyBuffer
+    WGPU.Raw.Generated.Struct.WGPUImageCopyTexture
+    WGPU.Raw.Generated.Struct.WGPUInstanceDescriptor
+    WGPU.Raw.Generated.Struct.WGPUMultisampleState
+    WGPU.Raw.Generated.Struct.WGPUOrigin3D
+    WGPU.Raw.Generated.Struct.WGPUPipelineLayoutDescriptor
+    WGPU.Raw.Generated.Struct.WGPUPrimitiveDepthClampingState
+    WGPU.Raw.Generated.Struct.WGPUPrimitiveState
+    WGPU.Raw.Generated.Struct.WGPUProgrammableStageDescriptor
+    WGPU.Raw.Generated.Struct.WGPUQuerySetDescriptor
+    WGPU.Raw.Generated.Struct.WGPURenderBundleDescriptor
+    WGPU.Raw.Generated.Struct.WGPURenderBundleEncoderDescriptor
+    WGPU.Raw.Generated.Struct.WGPURenderPassColorAttachment
+    WGPU.Raw.Generated.Struct.WGPURenderPassDepthStencilAttachment
+    WGPU.Raw.Generated.Struct.WGPURenderPassDescriptor
+    WGPU.Raw.Generated.Struct.WGPURenderPipelineDescriptor
+    WGPU.Raw.Generated.Struct.WGPURequestAdapterOptions
+    WGPU.Raw.Generated.Struct.WGPUSamplerBindingLayout
+    WGPU.Raw.Generated.Struct.WGPUSamplerDescriptor
+    WGPU.Raw.Generated.Struct.WGPUShaderModuleDescriptor
+    WGPU.Raw.Generated.Struct.WGPUShaderModuleSPIRVDescriptor
+    WGPU.Raw.Generated.Struct.WGPUShaderModuleWGSLDescriptor
+    WGPU.Raw.Generated.Struct.WGPUStencilFaceState
+    WGPU.Raw.Generated.Struct.WGPUStorageTextureBindingLayout
+    WGPU.Raw.Generated.Struct.WGPUSurfaceDescriptor
+    WGPU.Raw.Generated.Struct.WGPUSurfaceDescriptorFromCanvasHTMLSelector
+    WGPU.Raw.Generated.Struct.WGPUSurfaceDescriptorFromMetalLayer
+    WGPU.Raw.Generated.Struct.WGPUSurfaceDescriptorFromWindowsHWND
+    WGPU.Raw.Generated.Struct.WGPUSurfaceDescriptorFromXlib
+    WGPU.Raw.Generated.Struct.WGPUSwapChainDescriptor
+    WGPU.Raw.Generated.Struct.WGPUTextureBindingLayout
+    WGPU.Raw.Generated.Struct.WGPUTextureDataLayout
+    WGPU.Raw.Generated.Struct.WGPUTextureDescriptor
+    WGPU.Raw.Generated.Struct.WGPUTextureViewDescriptor
+    WGPU.Raw.Generated.Struct.WGPUVertexAttribute
+    WGPU.Raw.Generated.Struct.WGPUVertexBufferLayout
+    WGPU.Raw.Generated.Struct.WGPUVertexState
+    WGPU.Raw.Types

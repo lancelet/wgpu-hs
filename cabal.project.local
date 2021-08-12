@@ -1,0 +1,3 @@
+extra-lib-dirs: /Users/jsm/workspace/wgpu-hs/wgpu-raw-hs-codegen/wgpu-native/target/debug
+extra-include-dirs: /Users/jsm/workspace/wgpu-hs/wgpu-raw-hs-codegen/wgpu-native/ffi
+tests: True

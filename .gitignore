@@ -1,2 +1,6 @@
+.DS_Store
+.idea
+*.log
+tmp/
+
 **/dist-newstyle
-cabal.project.local
