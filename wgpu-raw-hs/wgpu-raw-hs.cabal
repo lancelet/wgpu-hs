@@ -24,6 +24,7 @@ library
   import:          base, ghc-options
   hs-source-dirs:  src
   exposed-modules:
+    WGPU.Raw.Dynamic
     WGPU.Raw.Generated.Enum.WGPUAdapterType
     WGPU.Raw.Generated.Enum.WGPUAddressMode
     WGPU.Raw.Generated.Enum.WGPUBackendType
@@ -127,3 +128,15 @@ library
     WGPU.Raw.Generated.Struct.WGPUVertexBufferLayout
     WGPU.Raw.Generated.Struct.WGPUVertexState
     WGPU.Raw.Types
+
+  if os(osx)
+    cpp-options:   -DWGPUHS_UNIX
+    build-depends: unix
+
+  if os(linux)
+    cpp-options:   -DWGPUHS_UNIX
+    build-depends: unix
+
+  if os(windows)
+    cpp-options:   -DWGPUHS_WINDOWS
+    build-depends: Win32

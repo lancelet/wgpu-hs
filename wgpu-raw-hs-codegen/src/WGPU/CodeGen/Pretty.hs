@@ -39,7 +39,18 @@ import WGPU.CodeGen.Haskell
     HsStructMember (HsStructMember),
     hsStructName,
   )
-import WGPU.CodeGen.Parse (CType (CBool, CChar, CDefined, CDouble, CFloat, CInt, CPtr, CVoid))
+import WGPU.CodeGen.Parse
+  ( CType
+      ( CBool,
+        CChar,
+        CDefined,
+        CDouble,
+        CFloat,
+        CInt,
+        CPtr,
+        CVoid
+      ),
+  )
 import WGPU.Metadata.Git (getWGPUSubmoduleString)
 
 -------------------------------------------------------------------------------
@@ -360,13 +371,15 @@ docHsFuns api metadata base modPrefix =
               hardline
               [ "import Foreign",
                 "import Foreign.C",
-                "import Prelude (IO)",
+                "import Prelude (IO, String, (<$>), pure)",
                 "import WGPU.Raw.Types"
               ]
         )
           <> hardline
           <> docImports,
-        docFuns
+        docDataInstance,
+        docLoadDynamicInstance,
+        docDynamicDecls
       ]
   where
     docExtensions :: Doc ann
@@ -375,6 +388,8 @@ docHsFuns api metadata base modPrefix =
         intersperse hardline $
           [ "{-# OPTIONS_GHC -Wno-unused-imports #-}",
             "{-# LANGUAGE ForeignFunctionInterface #-}",
+            "{-# LANGUAGE RecordWildCards #-}",
+            "{-# LANGUAGE RankNTypes #-}",
             "{-# LANGUAGE NoImplicitPrelude #-}"
           ]
 
@@ -394,18 +409,68 @@ docHsFuns api metadata base modPrefix =
     typDoc :: CType -> Doc ann
     typDoc = typeInfoDoc . getTypeInfo api
 
-    docFuns :: Doc ann
-    docFuns =
+    docDataInstance :: Doc ann
+    docDataInstance =
+      "data WGPUHsInstance = WGPUHsInstance {" <> hardline
+        <> ( indent 2 $
+               mconcat $
+                 intersperse ("," <> hardline) $
+                   haskellApiFuns api <&> \(HsFun n ps t) ->
+                     pretty n <+> "::" <+> docFnType ps t
+           )
+        <> hardline
+        <> "}"
+        <> hardline
+
+    docLoadDynamicInstance :: Doc ann
+    docLoadDynamicInstance =
+      ( "loadDynamicInstance" <+> "::" <> hardline
+          <> "  (forall a. String -> IO (FunPtr a))" <+> "->"
+          <> hardline
+          <> "  IO WGPUHsInstance"
+          <> hardline
+      )
+        <> "loadDynamicInstance load = do"
+        <> hardline
+        <> ( indent 2 $
+               ( mconcat $
+                   intersperse hardline $
+                     haskellApiFuns api <&> \(HsFun n ps t) ->
+                       pretty n <+> "<-"
+                         <+> "mk_wgpuhsfn_" <> pretty n
+                         <+> "<$>"
+                         <+> "load"
+                         <+> "\"" <> pretty n <> "\""
+               )
+                 <> hardline
+                 <> "pure WGPUHsInstance{..}"
+           )
+
+    docDynamicDecls :: Doc ann
+    docDynamicDecls =
       mconcat $
         intersperse gap $
           haskellApiFuns api <&> \(HsFun n ps t) ->
             hang 2 $
-              "foreign import ccall \"" <> pretty n <> "\"" <> hardline
-                <> pretty n <+> "::" <+> docFnParams ps
+              "foreign import ccall \"dynamic\"" <> hardline
+                <> "mk_wgpuhsfn_"
+                <> pretty n
+                <+> "::"
+                <+> "FunPtr ("
+                <> docFnParams ps
                 <> (if not (null ps) then " -> " else " ")
                 <> "IO ("
                 <> typDoc t
-                <> ")"
+                <> "))"
+                <+> "->"
+                <+> docFnType ps t
+
+    docFnType :: [HsFunParam] -> CType -> Doc ann
+    docFnType ps t =
+      docFnParams ps <> (if not (null ps) then " -> " else " ")
+        <> "IO ("
+        <> typDoc t
+        <> ")"
 
     docFnParams :: [HsFunParam] -> Doc ann
     docFnParams ps =
