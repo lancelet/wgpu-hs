@@ -11,6 +11,16 @@ copyright:          Copyright (C) Jonathan Merritt, 2021
 category:           Graphics
 extra-source-files: CHANGELOG.md
 
+flag glfw
+  description: Enable GLFW integration
+  default:     True
+  manual:      True
+
+flag examples
+  description: Build the example(s)
+  default:     True
+  manual:      True
+
 common base
   default-language: Haskell2010
   build-depends:    base ^>=4.14.0.0
@@ -22,6 +32,7 @@ common ghc-options
 
 library
   import:          base, ghc-options
+  include-dirs:    cbits
   hs-source-dirs:  src
   exposed-modules:
     WGPU.Raw.Dynamic
@@ -129,14 +140,41 @@ library
     WGPU.Raw.Generated.Struct.WGPUVertexState
     WGPU.Raw.Types
 
+  if flag(glfw)
+    build-depends:   GLFW-b
+    exposed-modules: WGPU.Raw.GLFWSurface
+
+    if os(osx)
+      c-sources:  cbits/surface-macos.m
+      frameworks: AppKit QuartzCore
+
   if os(osx)
-    cpp-options:   -DWGPUHS_UNIX
+    cpp-options:   -DWGPUHS_UNIX -DWGPUHS_TARGET_MACOS
+    cc-options:    -DWGPUHS_TARGET=WGPUHS_TARGET_MACOS
     build-depends: unix
 
   if os(linux)
-    cpp-options:   -DWGPUHS_UNIX
+    cpp-options:   -DWGPUHS_UNIX -DWGPUHS_TARGET_LINUX
+    cc-options:    -DWGPUHS_TARGET=WGPUHS_TARGET_LINUX
     build-depends: unix
 
   if os(windows)
-    cpp-options:   -DWGPUHS_WINDOWS
+    cpp-options:   -DWGPUHS_WINDOWS -DWGPUHS_TARGET_WINDOWS
+    cc-options:    -DWGPUHS_TARGET=WGPUHS_TARGET_WINDOWS
     build-depends: Win32
+
+executable triangle
+  import:         base, ghc-options
+
+  if flag(examples)
+    build-depends:
+      , base
+      , GLFW-b
+      , wgpu-raw-hs
+
+  else
+    buildable: False
+
+  hs-source-dirs: examples/triangle
+  main-is:        Triangle.hs
+  ghc-options:    -main-is Triangle

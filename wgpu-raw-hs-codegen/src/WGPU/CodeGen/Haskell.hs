@@ -150,12 +150,12 @@ haskellApi cApi =
       haskellApiFuns =
         hsFun cApi
           <$> [ -- from webgpu.h
-                "wgpuCreateInstance",
-                "wgpuGetProcAddress",
+                -- "wgpuCreateInstance", -- not implemented
+                -- "wgpuGetProcAddress", -- not implemented
                 "wgpuAdapterGetProperties",
                 "wgpuAdapterRequestDevice",
                 "wgpuBufferDestroy",
-                "wgpuBufferGetConstMappedRange",
+                -- "wgpuBufferGetConstMappedRange", -- not implemented
                 "wgpuBufferGetMappedRange",
                 "wgpuBufferMapAsync",
                 "wgpuBufferUnmap",
@@ -166,76 +166,76 @@ haskellApi cApi =
                 "wgpuCommandEncoderCopyTextureToTexture",
                 "wgpuCommandEncoderCopyTextureToBuffer",
                 "wgpuCommandEncoderFinish",
-                "wgpuCommandEncoderInsertDebugMarker",
-                "wgpuCommandEncoderPopDebugGroup",
-                "wgpuCommandEncoderPushDebugGroup",
-                "wgpuCommandEncoderResolveQuerySet",
-                "wgpuCommandEncoderWriteTimestamp",
-                "wgpuComputePassEncoderBeginPipelineStatisticsQuery",
+                -- "wgpuCommandEncoderInsertDebugMarker", -- not implemented
+                -- "wgpuCommandEncoderPopDebugGroup", -- not implemented
+                -- "wgpuCommandEncoderPushDebugGroup", -- not implemented
+                -- "wgpuCommandEncoderResolveQuerySet", -- not implemented
+                -- "wgpuCommandEncoderWriteTimestamp", -- not implemented
+                -- "wgpuComputePassEncoderBeginPipelineStatisticsQuery", -- not implemented
                 "wgpuComputePassEncoderDispatch",
                 "wgpuComputePassEncoderDispatchIndirect",
                 "wgpuComputePassEncoderEndPass",
-                "wgpuComputePassEncoderEndPipelineStatisticsQuery",
-                "wgpuComputePassEncoderInsertDebugMarker",
-                "wgpuComputePassEncoderPopDebugGroup",
-                "wgpuComputePassEncoderPushDebugGroup",
+                -- "wgpuComputePassEncoderEndPipelineStatisticsQuery", -- not implemented
+                -- "wgpuComputePassEncoderInsertDebugMarker", -- not implemented
+                -- "wgpuComputePassEncoderPopDebugGroup", -- not implemented
+                -- "wgpuComputePassEncoderPushDebugGroup", -- not implemented
                 "wgpuComputePassEncoderSetBindGroup",
                 "wgpuComputePassEncoderSetPipeline",
-                "wgpuComputePassEncoderWriteTimestamp",
-                "wgpuComputePipelineGetBindGroupLayout",
+                -- "wgpuComputePassEncoderWriteTimestamp", -- not implemented
+                -- "wgpuComputePipelineGetBindGroupLayout", -- not implemented
                 "wgpuDeviceCreateBindGroup",
                 "wgpuDeviceCreateBindGroupLayout",
                 "wgpuDeviceCreateBuffer",
                 "wgpuDeviceCreateCommandEncoder",
                 "wgpuDeviceCreateComputePipeline",
-                "wgpuDeviceCreateComputePipelineAsync",
+                -- "wgpuDeviceCreateComputePipelineAsync", -- not implemented
                 "wgpuDeviceCreatePipelineLayout",
-                "wgpuDeviceCreateQuerySet",
-                "wgpuDeviceCreateRenderBundleEncoder",
+                -- "wgpuDeviceCreateQuerySet", -- not implemented
+                -- "wgpuDeviceCreateRenderBundleEncoder", -- not implemented
                 "wgpuDeviceCreateRenderPipeline",
-                "wgpuDeviceCreateRenderPipelineAsync",
+                -- "wgpuDeviceCreateRenderPipelineAsync", -- not implemented
                 "wgpuDeviceCreateSampler",
                 "wgpuDeviceCreateShaderModule",
                 "wgpuDeviceCreateSwapChain",
                 "wgpuDeviceCreateTexture",
                 "wgpuDeviceGetQueue",
-                "wgpuDevicePopErrorScope",
-                "wgpuDevicePushErrorScope",
-                "wgpuDeviceSetDeviceLostCallback",
-                "wgpuDeviceSetUncapturedErrorCallback",
+                -- "wgpuDevicePopErrorScope", -- not implemented
+                -- "wgpuDevicePushErrorScope", -- not implemented
+                -- "wgpuDeviceSetDeviceLostCallback", -- not implemented
+                -- "wgpuDeviceSetUncapturedErrorCallback", -- not implemented
                 "wgpuInstanceCreateSurface",
-                "wgpuInstanceProcessEvents",
+                -- "wgpuInstanceProcessEvents", -- not implemented
                 "wgpuInstanceRequestAdapter",
-                "wgpuQuerySetDestroy",
-                "wgpuQueueOnSubmittedWorkDone",
+                -- "wgpuQuerySetDestroy", -- not implemented
+                -- "wgpuQueueOnSubmittedWorkDone", -- not implemented
                 "wgpuQueueSubmit",
                 "wgpuQueueWriteBuffer",
                 "wgpuQueueWriteTexture",
-                "wgpuRenderBundleEncoderDraw",
-                "wgpuRenderBundleEncoderDrawIndexed",
-                "wgpuRenderBundleEncoderDrawIndexedIndirect",
-                "wgpuRenderBundleEncoderDrawIndirect",
-                "wgpuRenderBundleEncoderFinish",
-                "wgpuRenderBundleEncoderInsertDebugMarker",
-                "wgpuRenderBundleEncoderPopDebugGroup",
-                "wgpuRenderBundleEncoderPushDebugGroup",
-                "wgpuRenderBundleEncoderSetBindGroup",
-                "wgpuRenderBundleEncoderSetIndexBuffer",
-                "wgpuRenderBundleEncoderSetPipeline",
-                "wgpuRenderBundleEncoderSetVertexBuffer",
-                "wgpuRenderPassEncoderBeginOcclusionQuery",
-                "wgpuRenderPassEncoderBeginPipelineStatisticsQuery",
+                -- "wgpuRenderBundleEncoderDraw", -- not implemented
+                -- "wgpuRenderBundleEncoderDrawIndexed", -- not implemented
+                -- "wgpuRenderBundleEncoderDrawIndexedIndirect", -- not implemented
+                -- "wgpuRenderBundleEncoderDrawIndirect", -- not implemented
+                -- "wgpuRenderBundleEncoderFinish", -- not implemented
+                -- "wgpuRenderBundleEncoderInsertDebugMarker", -- not implemented
+                -- "wgpuRenderBundleEncoderPopDebugGroup", -- not implemented
+                -- "wgpuRenderBundleEncoderPushDebugGroup", -- not implemented
+                -- "wgpuRenderBundleEncoderSetBindGroup", -- not implemented
+                -- "wgpuRenderBundleEncoderSetIndexBuffer", -- not implemented
+                -- "wgpuRenderBundleEncoderSetPipeline", -- not implemented
+                -- "wgpuRenderBundleEncoderSetVertexBuffer", -- not implemented
+                -- "wgpuRenderPassEncoderBeginOcclusionQuery",
+                -- "wgpuRenderPassEncoderBeginPipelineStatisticsQuery",
                 "wgpuRenderPassEncoderDraw",
                 "wgpuRenderPassEncoderDrawIndexed",
                 "wgpuRenderPassEncoderDrawIndexedIndirect",
                 "wgpuRenderPassEncoderDrawIndirect",
-                "wgpuRenderPassEncoderEndOcclusionQuery",
+                -- "wgpuRenderPassEncoderEndOcclusionQuery", -- not implemented
                 "wgpuRenderPassEncoderEndPass",
-                "wgpuRenderPassEncoderEndPipelineStatisticsQuery",
-                "wgpuRenderPassEncoderExecuteBundles",
-                "wgpuRenderPassEncoderInsertDebugMarker",
-                "wgpuRenderPassEncoderPopDebugGroup",
-                "wgpuRenderPassEncoderPushDebugGroup",
+                -- "wgpuRenderPassEncoderEndPipelineStatisticsQuery", -- not implemented
+                -- "wgpuRenderPassEncoderExecuteBundles", -- not implemented
+                -- "wgpuRenderPassEncoderInsertDebugMarker", -- not implemented
+                -- "wgpuRenderPassEncoderPopDebugGroup", -- not implemented
+                -- "wgpuRenderPassEncoderPushDebugGroup", -- not implemented
                 "wgpuRenderPassEncoderSetBindGroup",
                 "wgpuRenderPassEncoderSetBlendConstant",
                 "wgpuRenderPassEncoderSetIndexBuffer",
@@ -244,8 +244,8 @@ haskellApi cApi =
                 "wgpuRenderPassEncoderSetStencilReference",
                 "wgpuRenderPassEncoderSetVertexBuffer",
                 "wgpuRenderPassEncoderSetViewport",
-                "wgpuRenderPassEncoderWriteTimestamp",
-                "wgpuRenderPipelineGetBindGroupLayout",
+                -- "wgpuRenderPassEncoderWriteTimestamp", -- not implemented
+                -- "wgpuRenderPipelineGetBindGroupLayout", -- not implemented
                 "wgpuSurfaceGetPreferredFormat",
                 "wgpuSwapChainGetCurrentTextureView",
                 "wgpuSwapChainPresent",
