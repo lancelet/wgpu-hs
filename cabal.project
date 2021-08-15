@@ -1,3 +1,6 @@
 packages:
     ./wgpu-raw-hs-codegen/wgpu-raw-hs-codegen.cabal
     ./wgpu-raw-hs/wgpu-raw-hs.cabal
+
+constraints:
+    bindings-GLFW +ExposeNative
