@@ -9,7 +9,10 @@ author:             Jonathan Merritt
 maintainer:         j.s.merritt@gmail.com
 copyright:          Copyright (C) Jonathan Merritt, 2021
 category:           Graphics
-extra-source-files: CHANGELOG.md
+extra-source-files:
+  cbits/webgpu-headers/webgpu.h
+  cbits/wgpu.h
+  CHANGELOG.md
 
 flag glfw
   description: Enable GLFW integration
@@ -151,12 +154,12 @@ library
   if os(osx)
     cpp-options:   -DWGPUHS_UNIX -DWGPUHS_TARGET_MACOS
     cc-options:    -DWGPUHS_TARGET=WGPUHS_TARGET_MACOS
-    build-depends: unix
+    build-depends: unix ^>=2.7.2
 
   if os(linux)
     cpp-options:   -DWGPUHS_UNIX -DWGPUHS_TARGET_LINUX
     cc-options:    -DWGPUHS_TARGET=WGPUHS_TARGET_LINUX
-    build-depends: unix
+    build-depends: unix ^>=2.7.2
 
   if os(windows)
     cpp-options:   -DWGPUHS_WINDOWS -DWGPUHS_TARGET_WINDOWS
@@ -169,7 +172,7 @@ executable triangle
   if flag(examples)
     build-depends:
       , base
-      , GLFW-b
+      , GLFW-b       ^>=3.3.0
       , wgpu-raw-hs
 
   else

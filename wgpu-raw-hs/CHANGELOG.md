@@ -1,5 +1,8 @@
 # Revision history for wgpu-raw-hs
 
-## 0.1.0.0 -- YYYY-mm-dd
+## 0.1.0.0 -- 2021-08-15
 
-* First version. Released on an unsuspecting world.
+- Initial version. 
+  - Mostly auto-generated bindings to the raw C API.
+  - Surface creation for Metal on macOS.
+  - Basic triangle example is kind-of working.
