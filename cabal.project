@@ -1,6 +1,9 @@
 packages:
     ./wgpu-raw-hs-codegen/wgpu-raw-hs-codegen.cabal
     ./wgpu-raw-hs/wgpu-raw-hs.cabal
+    ./wgpu-hs/wgpu-hs.cabal
 
 constraints:
     bindings-GLFW +ExposeNative
+
+write-ghc-environment-files: always

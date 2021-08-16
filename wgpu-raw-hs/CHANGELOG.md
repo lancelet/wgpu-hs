@@ -1,5 +1,10 @@
 # Revision history for wgpu-raw-hs
 
+## 0.1.0.3 --
+
+- Removed slightly-broken `triangle` example. There is now a fully-working
+  `triangle` example in the `wgpu-hs` package instead.
+
 ## 0.1.0.2 -- 2021-08-16
 
 - Redo attempt at stubbing out `createSurface`.

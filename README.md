@@ -39,17 +39,19 @@ To build and run an example:
   1. Clone the repository and make sure that all git submodules are checked
      out:
      
-       ```
-       git clone https://github.com/lancelet/wgpu-hs.git
-       cd wgpu-hs
-       git submodule update --init --recursive
-       ```
+     ```
+     git clone https://github.com/lancelet/wgpu-hs.git
+     cd wgpu-hs
+     git submodule update --init --recursive
+     ```
        
-  2. Build the Rust libraries:
+  2. Build the Rust libraries. The `WGPU_NATIVE_VERSION` environment variable
+     is optional, but if it is supplied, it bakes the specified version number
+     into the dynamic library binary.
   
      ```
      pushd wgpu-raw-hs-codegen/wgpu-native
-     make lib-native  # you will need a Rust toolchain
+     WGPU_NATIVE_VERSION='v0.9.2.2' make lib-native
      popd
      ```
      
@@ -66,13 +68,13 @@ To build and run an example:
   4. Build and run the `triangle` example:
   
      ```
+     export METAL_DEVICE_WRAPPER_TYPE=1
      cabal run triangle
      ```
      
-If everything went well, you should see a really rubbish triangle demo:
+     The environment variable `METAL_DEVICE_WRAPPER_TYPE` enables Metal API
+     validation.
+     
+If everything went well, you should see the initial triangle demo:
 
 ![triangle demo](triangle-demo.png)
-
-(The demo is so rubbish that something is wrong with the background color.
-These are early days, and it simply demonstrates that we can get something on
-the screen!)

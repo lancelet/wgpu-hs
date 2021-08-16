@@ -1,0 +1,91 @@
+cabal-version:      3.0
+name:               wgpu-hs
+version:            0.1.0.0
+synopsis:           WGPU
+description:        A high-level binding to WGPU.
+bug-reports:        https://github.com/lancelet/wgpu-hs/issues
+license:            BSD-3-Clause
+author:             Jonathan Merritt
+maintainer:         j.s.merritt@gmail.com
+copyright:          Copyright (C) Jonathan Merritt, 2021
+category:           Graphics
+extra-source-files: CHANGELOG.md
+
+flag examples
+  description: Build the examples
+  default:     True
+  manual:      True
+
+common base
+  default-language: Haskell2010
+  build-depends:    base ^>=4.14.0.0
+
+common ghc-options
+  ghc-options:
+    -Wall -Wcompat -Wincomplete-record-updates
+    -Wincomplete-uni-patterns -Wredundant-constraints
+
+library wgpu-hs-internal
+  import:          base, ghc-options
+  hs-source-dirs:  src-internal
+  exposed-modules:
+    WGPU.Internal.Adapter
+    WGPU.Internal.Binding
+    WGPU.Internal.ChainedStruct
+    WGPU.Internal.Color
+    WGPU.Internal.CommandBuffer
+    WGPU.Internal.CommandEncoder
+    WGPU.Internal.Device
+    WGPU.Internal.Instance
+    WGPU.Internal.Memory
+    WGPU.Internal.Multipurpose
+    WGPU.Internal.Pipeline
+    WGPU.Internal.Queue
+    WGPU.Internal.RenderPass
+    WGPU.Internal.Sampler
+    WGPU.Internal.Shader
+    WGPU.Internal.SMaybe
+    WGPU.Internal.Surface
+    WGPU.Internal.SwapChain
+    WGPU.Internal.Texture
+
+  build-depends:
+    , bytestring
+    , data-default
+    , GLFW-b
+    , text
+    , transformers
+    , vector
+    , wgpu-raw-hs
+
+library
+  import:          base, ghc-options
+  hs-source-dirs:  src
+  build-depends:
+    , bytestring        ^>=0.10.12
+    , data-default      ^>=0.7.1.1
+    , GLFW-b            ^>=3.3.0
+    , text              ^>=1.2.4
+    , transformers      ^>=0.5.6
+    , vector            ^>=0.12.3
+    , wgpu-hs-internal
+    , wgpu-raw-hs       ==0.1.0.3
+
+  exposed-modules: WGPU
+
+executable triangle
+  import:         base, ghc-options
+
+  if flag(examples)
+    build-depends:
+      , data-default  ^>=0.7.1.1
+      , GLFW-b        ^>=3.3.0
+      , text          ^>=1.2.4
+      , transformers  ^>=0.5.6
+      , wgpu-hs
+
+  else
+    buildable: False
+
+  hs-source-dirs: examples/triangle
+  main-is:        Main.hs
