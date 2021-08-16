@@ -64,7 +64,7 @@ foreign import ccall "wgpuhs_metal_layer"
 
 #endif
 
-#ifdef WGPU_HS_TARGET_LINUX
+#ifdef WGPUHS_TARGET_LINUX
 
 createSurface ::
   WGPUHsInstance ->

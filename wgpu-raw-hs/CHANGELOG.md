@@ -1,5 +1,10 @@
 # Revision history for wgpu-raw-hs
 
+## 0.1.0.2 -- 2021-08-16
+
+- Redo attempt at stubbing out `createSurface`.
+- Improve README.
+
 ## 0.1.0.1 -- 2021-08-16
 
 - Stub out Linux version of `createSurface` so that the package documentation

@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               wgpu-raw-hs
-version:            0.1.0.1
+version:            0.1.0.2
 synopsis:           WGPU Raw
 description:
   A very low-level WGPU binding.
