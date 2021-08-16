@@ -1,10 +1,9 @@
 cabal-version:      3.0
 name:               wgpu-raw-hs
-version:            0.1.0.2
+version:            0.1.0.3
 synopsis:           WGPU Raw
 description:
   A very low-level WGPU binding.
-  .
   Currently, this package will only work properly on macOS. In the future,
   support for Linux and Windows is planned.
 
@@ -149,7 +148,7 @@ library
     WGPU.Raw.Types
 
   if flag(glfw)
-    build-depends:   GLFW-b
+    build-depends:   GLFW-b ^>=3.3.0
     exposed-modules: WGPU.Raw.GLFWSurface
 
     if os(osx)
@@ -170,19 +169,3 @@ library
     cpp-options:   -DWGPUHS_WINDOWS -DWGPUHS_TARGET_WINDOWS
     cc-options:    -DWGPUHS_TARGET=WGPUHS_TARGET_WINDOWS
     build-depends: Win32
-
-executable triangle
-  import:         base, ghc-options
-
-  if flag(examples)
-    build-depends:
-      , base
-      , GLFW-b       ^>=3.3.0
-      , wgpu-raw-hs
-
-  else
-    buildable: False
-
-  hs-source-dirs: examples/triangle
-  main-is:        Triangle.hs
-  ghc-options:    -main-is Triangle
