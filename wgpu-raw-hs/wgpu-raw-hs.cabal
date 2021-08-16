@@ -1,8 +1,13 @@
 cabal-version:      3.0
 name:               wgpu-raw-hs
-version:            0.1.0.0
+version:            0.1.0.1
 synopsis:           WGPU Raw
-description:        A very low-level WGPU binding.
+description:
+  A very low-level WGPU binding.
+  .
+  Currently, this package will only work properly on macOS. In the future,
+  support for Linux and Windows is planned.
+
 bug-reports:        https://github.com/lancelet/wgpu-hs/issues
 license:            BSD-3-Clause
 author:             Jonathan Merritt

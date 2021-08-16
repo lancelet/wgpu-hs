@@ -63,3 +63,13 @@ foreign import ccall "wgpuhs_metal_layer"
     IO (Ptr ())
 
 #endif
+
+#ifdef WGPU_HS_TARGET_LINUX
+
+createSurface ::
+  WGPUHsInstance ->
+  GLFW.Window ->
+  IO WGPUSurface
+createSurface inst window = error "Linux: not yet implemented."
+
+#endif
