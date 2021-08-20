@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP #-}
 
--- |
 module WGPU.Raw.Dynamic
   ( -- * Functions
     withWGPU,

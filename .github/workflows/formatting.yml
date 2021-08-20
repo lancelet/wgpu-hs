@@ -1,0 +1,22 @@
+name: Formatting Check
+
+# Trigger the workflow on push or a pull request, but only for the main branch
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  cabal:
+    name: Formatting Check
+    runs-on: macOS-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Check code formatting
+      run: |
+        export PATH=$(pwd):$PATH
+        echo "$PATH" >> $GITHUB_PATH
+        curl -L https://github.com/lancelet/hspretty/releases/download/v0.2.0.0/hspretty-macos-0.2.0.0.tar.gz | tar -x
+        hspretty check

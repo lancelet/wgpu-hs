@@ -1,6 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
--- |
 module WGPU.Raw.Types where
 
 import Data.Word (Word32)
