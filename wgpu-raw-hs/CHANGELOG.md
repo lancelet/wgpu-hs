@@ -1,6 +1,6 @@
 # Revision history for wgpu-raw-hs
 
-## 0.1.0.3 --
+## 0.1.0.3 -- 2021-08-20
 
 - Removed slightly-broken `triangle` example. There is now a fully-working
   `triangle` example in the `wgpu-hs` package instead.
