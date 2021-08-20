@@ -1,5 +1,7 @@
 # wgpu-hs - Haskell Bindings for wgpu-native
 
+[![Hackage][hackage-shield]][hackage]
+
 This repository contains Haskell bindings for
 [wgpu-native](https://github.com/gfx-rs/wgpu-native).
 These bindings are in an early stage of development and are not yet stable.
@@ -78,3 +80,6 @@ To build and run an example:
 If everything went well, you should see the initial triangle demo:
 
 ![triangle demo](triangle-demo.png)
+
+[hackage]: http://hackage.haskell.org/package/wgpu-hs
+[hackage-shield]: https://img.shields.io/hackage/v/wgpu-hs.svg?style=flat
