@@ -24,7 +24,7 @@ withWGPU dynlibFile action = do
 #endif
 
 #ifdef WGPUHS_WINDOWS
-import Foreign (castPtrToFunPtr)
+import Foreign (FunPtr, castPtrToFunPtr)
 import System.Win32.DLL (loadLibrary, freeLibrary, getProcAddress)
 
 -- | Load WGPU from a dynamic library and run a program using an instance.
@@ -39,8 +39,9 @@ withWGPU dynlibFile action = do
   -- TODO: safer bracketing
   hInstance <- loadLibrary dynlibFile
   let load :: String -> IO (FunPtr a)
-      load = castPtrToFunPtr <$> getProcAddress
+      load = fmap castPtrToFunPtr . getProcAddress hInstance
   wgpuHsInstance <- loadDynamicInstance load
-  action wgpuHsInstance
+  result <- action wgpuHsInstance
   freeLibrary hInstance
+  pure result
 #endif

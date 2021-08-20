@@ -13,6 +13,7 @@ module WGPU.Internal.Instance
     --
     -- $instance
     Instance (..),
+    withPlatformInstance,
     withInstance,
 
     -- * Logging
@@ -36,6 +37,7 @@ import qualified Data.Text.IO as TextIO
 import Data.Word (Word32, Word8)
 import Foreign (Ptr, freeHaskellFunPtr, nullFunPtr)
 import Foreign.C (CChar, peekCString)
+import qualified System.Info
 import WGPU.Internal.Memory (ToRaw, raw)
 import WGPU.Raw.Dynamic (withWGPU)
 import WGPU.Raw.Generated.Enum.WGPULogLevel (WGPULogLevel (WGPULogLevel))
@@ -78,17 +80,23 @@ instance ToRaw Instance WGPUHsInstance where
 
 -------------------------------------------------------------------------------
 
--- | Logging level.
-data LogLevel
-  = Trace
-  | Debug
-  | Info
-  | Warn
-  | Error
-  deriving (Eq, Show)
-
--- | Logging callback function.
-type LogCallback = LogLevel -> Text -> IO ()
+-- | Load the WGPU API from a dynamic library and supply an 'Instance' to a
+-- program.
+--
+-- This is the same as 'withInstance', except that it uses a default,
+-- per-platform name for the library, based on the value returned by
+-- 'System.Info.os'.
+withPlatformInstance ::
+  -- | Optional logging callback. @'Just' 'logStdout'@ can be supplied here to
+  --   print log messages to @stdout@ for debugging purposes.
+  Maybe LogCallback ->
+  -- | The Program. A function which takes an 'Instance' and returns an IO
+  --   action that uses the instance.
+  (Instance -> IO a) ->
+  -- | IO action which loads the WGPU 'Instance', passes it to the program, and
+  --   returns the result of running the program.
+  IO a
+withPlatformInstance = withInstance platformDylibName
 
 -- | Load the WGPU API from a dynamic library and supply an 'Instance' to a
 -- program.
@@ -124,6 +132,33 @@ withInstance dylibPath mLog program =
           freeHaskellFunPtr logCallback_c
 
       pure result
+
+-- | Return the dynamic library name for a given platform.
+--
+-- This is the dynamic library name that should be passed to the 'withInstance'
+-- function to load the dynamic library.
+platformDylibName :: FilePath
+platformDylibName =
+  case System.Info.os of
+    "darwin" -> "libwgpu_native.dylib"
+    "mingw32" -> "wgpu_native.dll"
+    "linux" -> "libwgpu_native.dylib"
+    other ->
+      error $ "platformDylibName: unknown / unhandled platform: " <> other
+
+-------------------------------------------------------------------------------
+
+-- | Logging level.
+data LogLevel
+  = Trace
+  | Debug
+  | Info
+  | Warn
+  | Error
+  deriving (Eq, Show)
+
+-- | Logging callback function.
+type LogCallback = LogLevel -> Text -> IO ()
 
 -- | Set the current logging level for the instance.
 setLogLevel :: Instance -> LogLevel -> IO ()
