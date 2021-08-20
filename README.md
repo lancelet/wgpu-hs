@@ -1,4 +1,4 @@
-# wgpu-hs - Haskell Bindings for wgpu-native
+# Haskell Bindings for WebGPU Native
 
 [![Hackage][hackage-shield]][hackage]
 
@@ -6,31 +6,8 @@ This repository contains Haskell bindings for
 [wgpu-native](https://github.com/gfx-rs/wgpu-native).
 These bindings are in an early stage of development and are not yet stable.
 
-[WebGPU](https://en.wikipedia.org/wiki/WebGPU) is a future web standard for a
-next-generation accelerated graphics and compute API, developed by W3C.
-`wgpu-native` is a C binding to a native version of a similar API, that can be
-compiled natively, and used outside a web browser.
-
-Two practical open-source implementations of WebGPU exist:
-  1. [wgpu-native](https://github.com/gfx-rs/wgpu-native) from "Rust Graphics
-     Mages" (gfx-rs), and
-  2. [dawn](https://dawn.googlesource.com/dawn) from Google.
-  
-Currently, only `wgpu-native` is targeted by these bindings. In the future, a
-shared, complete C API may be supported by both packages, but since such a
-complete API does not yet exist, only the Rust version can be expected to work
-at the moment.
-
 Currently, only macOS is supported by these Haskell bindings. Adding other
 platforms should be relatively trivial but requires testing.
-
-## Summary of Packages
-
-There are three different packages in this repository:
-
-  1. `wgpu-raw-hs-codegen`: Generates most of the code for `wgpu-raw-hs`.
-  2. `wgpu-raw-hs`: Low-level, C-like bindings to the `wgpu-native` API.
-  3. `wgpu-hs`: Higher-level, Haskell-like bindings.
 
 ## Building and Running
 
