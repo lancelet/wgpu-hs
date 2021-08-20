@@ -16,6 +16,7 @@ module WGPU
     -- * Initialization #initialization#
     -- $initialization
     Instance,
+    withPlatformInstance,
     withInstance,
 
     -- * Surface #surface#
@@ -211,23 +212,13 @@ import WGPU.Internal.Texture
 --
 -- === Platform Support
 --
--- Currently, only macOS (with the Metal backend) is supported. The limitation
--- is not fundamental and only exists because, so far, only macOS surface
--- creation has been implemented. In the future, other backends should be added.
+-- Currently, macOS (Metal) and Windows are supported. Linux support is planned.
 --
 -- === Dependence on GLFW-b
 --
 -- This package currently uses only
 -- <https://hackage.haskell.org/package/GLFW-b GLFW-b>
--- for windowing and event processing. Clearly, it is undesirable to be
--- tied to only a single library for this purpose, when options like
--- <https://hackage.haskell.org/package/sdl2 sdl2> are available and might be
--- preferred by many users.
---
--- GFLW is used because it is the windowing library used in the C examples from
--- @wgpu-native@ and it exposes an API to obtain a pointer to the underlying
--- windowing system's native window. In the future, other options will be
--- investigated as time permits.
+-- for windowing and event processing.
 --
 -- === Structure of Bindings
 --
@@ -235,55 +226,30 @@ import WGPU.Internal.Texture
 --
 --   1. The @wgpu-raw-hs-codegen@ package is a code generator for the raw
 --      bindings. It creates all the packages named @WGPU.Raw.Generated.*@
---      (without exception!), using a custom code generator based on
---      `langage-c`. This package is not in Hackage, since it is only used
---      offline.
+--      (without exception!).
 --
 --   2. The <https://hackage.haskell.org/package/wgpu-raw-hs wgpu-raw-hs>
---      package provides raw bindings to @wgpu-native@. These raw bindings are
---      mostly auto-generated, but have some manual curation of top-level types
---      and function aliases. They are "raw" in the sense that they contain raw
---      pointers and are not usable without manual management of memory to
---      construct all the C structs that must be passed to the API.
+--      package provides raw bindings to @wgpu-native@. They are "raw" in the
+--      sense that they contain raw pointers and are not usable without manual
+--      construction of the C structs that must be passed to the API.
 --
 --   3. The @wgpu-hs@ package (this one) provides high-level bindings. These
 --      bindings are written manually. They are improvements on the raw
 --      bindings in the following ways:
 --
---       - There are no more raw @Ptr@ types. Memory for structs passed to the
---         raw API is managed using a type class (@ToRaw@) that encapsulates a
---         mapping between high-level API types and raw types. The possibility
---         to allocate memory as part of this conversion (and later free it) is
---         achieved by embedding conversion to the raw types inside the @ContT@
---         continuation monad.
+--       - There are no more raw @Ptr@ types.
 --
---       - There are no callbacks. Several WebGPU native calls use callbacks to
---         indicate completion rather than blocking. The author decided that, in
---         the Haskell context, blocking was probably preferable. So,
---         internally, these calls are converted into a blocking form by waiting
---         on @MVar@s that are set by the callbacks.
+--       - There are no callbacks.
 --
 --       - Several parts of the API are tweaked slightly to more closely
---         resemble the Rust API. This is done in cases where, for example, a
---         parameter to the C API is unused except in one branch of a sum type.
---         When this can be done easily enough, it is preferred to using the
---         flattened "union" approach.
+--         resemble the Rust API.
 --
---       - Names are de-duplicated. Where possible, names are identical to the C
---         API (sometimes with prefixes removed). However, where name conflicts
---         exist, names are changed to somewhat-idiomatic Haskell variants.
+--       - Names are de-duplicated.
 --
 -- === Native Library Handling
 --
 -- The native library for @wgpu-native@ is not required at compile-time for this
--- package. Indeed, other packages containing executables that depend on this
--- one can be compiled without the native library! Instead, the library is
--- loaded dynamically and its symbols bound at runtime. This has the benefit
--- that the Haskell tooling need not be concerned with handling a Rust library
--- (yay!), but it is a point of common failure at runtime. To achieve this
--- independence, the header files for @wgpu-native@ are packaged inside
--- @wgpu-raw-hs@. Of course, care should be taken to ensure that a
--- fully-compatible version of the library is used at runtime.
+-- package. The library is loaded dynamically at runtime.
 
 -------------------------------------------------------------------------------
 
@@ -296,10 +262,10 @@ import WGPU.Internal.Texture
 -- <https://github.com/gfx-rs/wgpu-native wgpu-native> is supported.
 --
 -- To load the dynamic library and obtain an instance, use the
--- 'withInstance' bracketing function:
+-- 'withPlatformInstance' or 'withInstance' bracketing functions:
 --
 -- @
--- 'withInstance' "libwgpu_native.dylib" (Just 'logStdout') $ \inst -> do
+-- 'withPlatformInstance' (Just 'logStdout') $ \inst -> do
 --   -- set the logging level (optional)
 --   'setLogLevel' inst 'Warn'
 --   -- run the rest of the program...

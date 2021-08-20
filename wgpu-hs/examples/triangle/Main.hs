@@ -40,7 +40,7 @@ main = do
         TextIO.putStrLn "Failed to create GLFW window"
         exitFailure
 
-  WGPU.withInstance "libwgpu_native.dylib" (Just WGPU.logStdout) $ \inst -> do
+  WGPU.withPlatformInstance (Just WGPU.logStdout) $ \inst -> do
     -- set the logging level
     WGPU.setLogLevel inst WGPU.Warn
 
