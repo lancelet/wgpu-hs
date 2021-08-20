@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 
--- |
 module WGPU.Raw.GLFWSurface where
 
 import Foreign (Ptr, alloca, castPtr, nullPtr, poke)

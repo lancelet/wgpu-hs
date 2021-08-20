@@ -1,7 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
 
--- |
 module WGPU.Internal.ChainedStruct
   ( -- * Types
     ChainedStruct (..),

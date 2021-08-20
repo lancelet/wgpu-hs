@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
--- |
 module WGPU.CodeGen.Haskell
   ( -- * Types
     HaskellApi (HaskellApi, haskellApiEnums, haskellApiStructs, haskellApiFuns),

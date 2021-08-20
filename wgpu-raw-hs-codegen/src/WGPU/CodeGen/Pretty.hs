@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-deferred-type-errors #-}
 
--- |
 module WGPU.CodeGen.Pretty where
 
 import Chronos (Datetime, SubsecondPrecision (SubsecondPrecisionAuto), encode_YmdHMS, now, timeToDatetime, w3c)
