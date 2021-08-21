@@ -9,6 +9,7 @@ description:
 
 bug-reports:        https://github.com/lancelet/wgpu-hs/issues
 license:            BSD-3-Clause
+license-file:       LICENSE
 author:             Jonathan Merritt
 maintainer:         j.s.merritt@gmail.com
 copyright:          Copyright (C) Jonathan Merritt, 2021
