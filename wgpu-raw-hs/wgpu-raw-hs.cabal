@@ -24,11 +24,6 @@ flag glfw
   default:     True
   manual:      True
 
-flag examples
-  description: Build the example(s)
-  default:     True
-  manual:      True
-
 common base
   default-language: Haskell2010
   build-depends:    base ^>=4.14.0.0
