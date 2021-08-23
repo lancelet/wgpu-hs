@@ -1,8 +1,9 @@
 # Getting Started
 
 Please see the platform-specific guides below:
-  - [Apple macOS](#macOS)
-  - [Microsoft Windows](#windows)
+  - [Apple macOS](#apple-macos)
+  - [Microsoft Windows](#microsoft-windows)
+  - [Ubuntu Linux](#ubuntu-linux)
 
 ## Apple macOS
 
@@ -111,4 +112,79 @@ of Windows 10 on 2021-08-21.
   
      ```powershell
      cabal run triangle 
+     ```
+
+## Ubuntu Linux
+
+These instructions are only a suggestion. Other setup options are possible.
+These instructions were tested manually in a fresh installation of Ubuntu Linux
+20.04.3 LTS on 2021-08-24.
+
+### Toolchain Installation
+
+  1. Make sure your Linux graphics drivers are up-to-date, and that they
+     support Vulkan.
+     
+  1. Install the required development tools supplied in the Ubuntu
+     repositories:
+     
+     ```sh
+     sudo apt-get update
+     sudo apt-get install \
+       build-essential \
+       clang \
+       curl \
+       git \
+       libffi-dev \
+       libffi7 \
+       libgmp-dev \
+       libncurses-dev \
+       libncurses5 \
+       libtinfo5 \
+       libglfw3-dev \
+       libxi-dev \
+       libxxf86vm-dev \
+       libxcursor-dev \
+       libxinerama-dev \
+       -y
+     ```
+     
+     (NB: `libglfw3-dev` will als bring in `libvulkan-dev`.)
+     
+  1. Install the
+     [Rust toolchain](https://www.rust-lang.org/tools/install) using `rustup`.
+
+  1. Install the [Haskell toolchain](https://www.haskell.org/ghcup/) using
+     `ghcup`. You may need to use `ghcup tui` to select an appropriate GHC
+     version (GHC 8.10.5).
+
+### Build and Run an Example
+
+  1. Clone the repository. In a terminal:
+  
+     ```sh
+     git clone https://github.com/lancelet/wgpu-hs.git
+     cd wgpu-hs
+     git submodule update --init --recursive
+     ```
+     
+  1. Build the Rust library `libwgpu_native.so`:
+  
+     ```sh
+     pushd wgpu-raw-hs-codegen/wgpu-native
+     WGPU_NATIVE_VERSION='v0.9.2.2' make lib-native
+     popd
+     ```
+     
+  1. Set `LD_LIBRARY_PATH` to include the Rust dynamic library that was just
+     built:
+     
+     ```sh
+     export LD_LIBRARY_PATH=$(pwd)/wgpu-raw-hs-codegen/wgpu-native/target/debug/:$LD_LIBRARY_PATH
+     ```
+     
+  1. Build and run the `triangle` example:
+  
+     ```sh
+     cabal run triangle
      ```

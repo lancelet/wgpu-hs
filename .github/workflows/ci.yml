@@ -12,13 +12,19 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macOS-latest, windows-latest]  # ubuntu-latest
+        os: [macOS-latest, ubuntu-latest, windows-latest]
         cabal: ["3.2"]
         ghc:
           - "8.10.5"
 
     steps:
     - uses: actions/checkout@v2
+
+    - name: Install Ubuntu Dependencies
+      if: ${{ matrix.os == 'ubuntu-latest' }}
+      run: |
+        sudo apt-get update
+        sudo apt-get install libglfw3-dev libxi-dev libxrandr-dev libxxf86vm-dev libxcursor-dev libxinerama-dev -y
 
     - uses: haskell/actions/setup@v1
       id: setup-haskell-cabal

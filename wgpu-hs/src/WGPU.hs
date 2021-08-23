@@ -5,7 +5,7 @@
 -- Copyright   : Copyright (C) Jonathan Merritt 2021
 -- Maintainer  : Jonathan Merritt <j.s.merritt@gmail.com>
 -- Stability   : experimental
--- Portability : macOS
+-- Portability : macOS, Linux, Windows
 --
 -- Layout of this module should be guided by the evolving
 -- <https://www.w3.org/TR/webgpu/ WebGPU Specification>.
@@ -212,7 +212,7 @@ import WGPU.Internal.Texture
 --
 -- === Platform Support
 --
--- Currently, macOS (Metal) and Windows are supported. Linux support is planned.
+-- Currently, macOS (Metal), Windows and Linux are supported.
 --
 -- === Dependence on GLFW-b
 --

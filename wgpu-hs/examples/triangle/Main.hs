@@ -5,11 +5,12 @@
 -- | Let's draw a triangle!
 module Main (main) where
 
-import Control.Monad (unless)
+import Control.Monad (unless, when)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except (runExceptT)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), maybeToExceptT)
 import Data.Default (def)
+import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.IO as TextIO
@@ -28,12 +29,10 @@ main = do
     exitFailure
 
   -- create the GLFW window without a "client API"
-  let initWidth, initHeight :: Int
-      initWidth = 640
-      initHeight = 480
+  windowSzRef <- newIORef (640, 480)
   GLFW.windowHint (GLFW.WindowHint'ClientAPI GLFW.ClientAPI'NoAPI)
   window <- do
-    mWin <- GLFW.createWindow initWidth initHeight "Triangle" Nothing Nothing
+    mWin <- GLFW.createWindow 640 480 "Triangle" Nothing Nothing
     case mWin of
       Just w -> pure w
       Nothing -> do
@@ -61,10 +60,11 @@ main = do
           { swapChainLabel = "SwapChain",
             usage = WGPU.TextureUsageRenderAttachment,
             swapChainFormat = swapChainFormat,
-            width = fromIntegral initWidth,
-            height = fromIntegral initHeight,
+            width = 640,
+            height = 480,
             presentMode = WGPU.PresentModeFifo
           }
+    swapChainRef <- newIORef swapChain
     pipelineLayout <-
       WGPU.createPipelineLayout
         device
@@ -92,6 +92,8 @@ main = do
           }
 
     let loop = do
+          -- update swapchain if the window size is different
+          updateSwapChain device surface window swapChainFormat windowSzRef swapChainRef
           -- render
           nextTexture <- WGPU.getSwapChainCurrentTextureView swapChain
           encoder <- WGPU.createCommandEncoder device "Command Encoder"
@@ -170,6 +172,33 @@ getResources inst window = runExceptT $ do
   queue <- lift $ WGPU.getQueue device
 
   pure Resources {..}
+
+updateSwapChain ::
+  WGPU.Device ->
+  WGPU.Surface ->
+  GLFW.Window ->
+  WGPU.TextureFormat ->
+  IORef (Int, Int) ->
+  IORef WGPU.SwapChain ->
+  IO ()
+updateSwapChain device surface window textureFormat szRef swapChainRef = do
+  oldSz <- readIORef szRef
+  curSz <- GLFW.getWindowSize window
+  when (curSz /= oldSz) $ do
+    writeIORef szRef curSz
+    swapChain <-
+      WGPU.createSwapChain
+        device
+        surface
+        WGPU.SwapChainDescriptor
+          { swapChainLabel = "SwapChain",
+            usage = WGPU.TextureUsageRenderAttachment,
+            swapChainFormat = textureFormat,
+            width = fromIntegral . fst $ curSz,
+            height = fromIntegral . snd $ curSz,
+            presentMode = WGPU.PresentModeFifo
+          }
+    writeIORef swapChainRef swapChain
 
 shaderSrc :: WGPU.WGSL
 shaderSrc =

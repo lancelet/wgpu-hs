@@ -10,6 +10,7 @@ import WGPU.Raw.Generated.Fun (WGPUHsInstance, loadDynamicInstance)
 
 #ifdef WGPUHS_UNIX
 import System.Posix.DynamicLinker (withDL, dlsym)
+import System.Posix.DynamicLinker.Prim (RTLDFlags(RTLD_NOW))
 
 -- | Load WGPU from a dynamic library and run a program using an instance.
 withWGPU ::
@@ -20,7 +21,8 @@ withWGPU ::
   -- | Completed IO action.
   IO a
 withWGPU dynlibFile action = do
-  withDL dynlibFile [] $ \dl -> loadDynamicInstance (dlsym dl) >>= action
+  withDL
+    dynlibFile [RTLD_NOW] $ \dl -> loadDynamicInstance (dlsym dl) >>= action
 #endif
 
 #ifdef WGPUHS_WINDOWS
