@@ -142,7 +142,7 @@ platformDylibName =
   case System.Info.os of
     "darwin" -> "libwgpu_native.dylib"
     "mingw32" -> "wgpu_native.dll"
-    "linux" -> "libwgpu_native.dylib"
+    "linux" -> "libwgpu_native.so"
     other ->
       error $ "platformDylibName: unknown / unhandled platform: " <> other
 

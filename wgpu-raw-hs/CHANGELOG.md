@@ -1,5 +1,9 @@
 # Revision history for wgpu-raw-hs
 
+## 0.2.0.1 -- 2021-08-24
+
+- Linux support.
+
 ## 0.2.0.0 -- 2021-08-22
 
 - Microsoft Windows support.

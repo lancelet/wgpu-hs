@@ -67,11 +67,52 @@ foreign import ccall "wgpuhs_metal_layer"
 
 #ifdef WGPUHS_TARGET_LINUX
 
+import WGPU.Raw.Generated.Struct.WGPUSurfaceDescriptorFromXlib
+
 createSurface ::
   WGPUHsInstance ->
   GLFW.Window ->
   IO WGPUSurface
-createSurface inst window = error "Linux: not yet implemented."
+createSurface inst glfwWin = do
+  x11Display <- GLFW.getX11Display glfwWin
+  x11Window <- GLFW.getX11Window glfwWin
+
+  alloca $ \ptr_surfaceDescriptor -> do
+    alloca $ \ptr_chainedStruct -> do
+      alloca $ \ptr_surfaceDescriptorFromXlib -> do
+
+        let surfaceDescriptorFromXlib =
+              WGPUSurfaceDescriptorFromXlib
+              { chain =
+                  WGPUChainedStruct
+                  { next = nullPtr,
+                    sType = WGPUSType.SurfaceDescriptorFromXlib
+                  },
+                display = x11Display,
+                window = fromIntegral x11Window
+              }
+        poke
+          ptr_surfaceDescriptorFromXlib
+          surfaceDescriptorFromXlib
+
+        let chainedStruct =
+             WGPUChainedStruct
+               { next = castPtr ptr_surfaceDescriptorFromXlib,
+                 sType = WGPUSType.SurfaceDescriptorFromXlib
+               }
+        poke ptr_chainedStruct chainedStruct
+
+        let surfaceDescriptor =
+              WGPUSurfaceDescriptor
+                { nextInChain = ptr_chainedStruct,
+                  label = nullPtr
+                }
+        poke ptr_surfaceDescriptor surfaceDescriptor
+
+        wgpuInstanceCreateSurface
+          inst
+          (WGPUInstance nullPtr)
+          ptr_surfaceDescriptor
 
 #endif
 

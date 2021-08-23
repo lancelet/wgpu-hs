@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               wgpu-hs
-version:            0.2.0.0
+version:            0.2.0.1
 synopsis:           WGPU
 description:        A high-level binding to WGPU.
 bug-reports:        https://github.com/lancelet/wgpu-hs/issues
@@ -70,7 +70,7 @@ library
     , transformers      ^>=0.5.6
     , vector            ^>=0.12.3
     , wgpu-hs-internal
-    , wgpu-raw-hs       ==0.2.0.0
+    , wgpu-raw-hs       ==0.2.0.1
 
   exposed-modules: WGPU
 
