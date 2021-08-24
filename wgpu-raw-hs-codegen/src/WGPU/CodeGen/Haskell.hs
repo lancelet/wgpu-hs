@@ -10,6 +10,7 @@ module WGPU.CodeGen.Haskell
     HsStructMember (..),
     HsFun (..),
     HsFunParam (..),
+    HsFunSafe (..),
 
     -- * Functions
     haskellApi,
@@ -146,17 +147,28 @@ haskellApi cApi =
                 "WGPUAdapterExtras",
                 "WGPUDeviceExtras"
               ]
-      haskellApiFuns =
-        hsFun cApi
+      haskellApiSafeFuns =
+        hsFun cApi Safe
+          <$> [ "wgpuAdapterRequestDevice",
+                "wgpuBufferMapAsync",
+                -- "wgpuDeviceCreateRenderPipelineAsync", -- not implemented
+                -- "wgpuDevicePopErrorScope", -- not implemented
+                -- "wgpuDevicePushErrorScope", -- not implemented
+                -- "wgpuDeviceSetDeviceLostCallback", -- not implemented
+                -- "wgpuDeviceSetUncapturedErrorCallback", -- not implemented
+                "wgpuInstanceRequestAdapter",
+                -- "wgpuQueueOnSubmittedWorkDone", -- not implemented
+                "wgpuSurfaceGetPreferredFormat"
+              ]
+      haskellApiUnsafeFuns =
+        hsFun cApi Unsafe
           <$> [ -- from webgpu.h
                 -- "wgpuCreateInstance", -- not implemented
                 -- "wgpuGetProcAddress", -- not implemented
                 "wgpuAdapterGetProperties",
-                "wgpuAdapterRequestDevice",
                 "wgpuBufferDestroy",
                 -- "wgpuBufferGetConstMappedRange", -- not implemented
                 "wgpuBufferGetMappedRange",
-                "wgpuBufferMapAsync",
                 "wgpuBufferUnmap",
                 "wgpuCommandEncoderBeginComputePass",
                 "wgpuCommandEncoderBeginRenderPass",
@@ -192,21 +204,14 @@ haskellApi cApi =
                 -- "wgpuDeviceCreateQuerySet", -- not implemented
                 -- "wgpuDeviceCreateRenderBundleEncoder", -- not implemented
                 "wgpuDeviceCreateRenderPipeline",
-                -- "wgpuDeviceCreateRenderPipelineAsync", -- not implemented
                 "wgpuDeviceCreateSampler",
                 "wgpuDeviceCreateShaderModule",
                 "wgpuDeviceCreateSwapChain",
                 "wgpuDeviceCreateTexture",
                 "wgpuDeviceGetQueue",
-                -- "wgpuDevicePopErrorScope", -- not implemented
-                -- "wgpuDevicePushErrorScope", -- not implemented
-                -- "wgpuDeviceSetDeviceLostCallback", -- not implemented
-                -- "wgpuDeviceSetUncapturedErrorCallback", -- not implemented
                 "wgpuInstanceCreateSurface",
                 -- "wgpuInstanceProcessEvents", -- not implemented
-                "wgpuInstanceRequestAdapter",
                 -- "wgpuQuerySetDestroy", -- not implemented
-                -- "wgpuQueueOnSubmittedWorkDone", -- not implemented
                 "wgpuQueueSubmit",
                 "wgpuQueueWriteBuffer",
                 "wgpuQueueWriteTexture",
@@ -245,18 +250,18 @@ haskellApi cApi =
                 "wgpuRenderPassEncoderSetViewport",
                 -- "wgpuRenderPassEncoderWriteTimestamp", -- not implemented
                 -- "wgpuRenderPipelineGetBindGroupLayout", -- not implemented
-                "wgpuSurfaceGetPreferredFormat",
                 "wgpuSwapChainGetCurrentTextureView",
                 "wgpuSwapChainPresent",
                 "wgpuTextureCreateView",
                 "wgpuTextureDestroy",
                 -- from wgpu.h
                 "wgpuDevicePoll",
-                "wgpuSetLogCallback",
+                -- "wgpuSetLogCallback", -- special implementation
                 "wgpuSetLogLevel",
                 "wgpuGetVersion",
                 "wgpuRenderPassEncoderSetPushConstants"
               ]
+      haskellApiFuns = haskellApiSafeFuns <> haskellApiUnsafeFuns
    in HaskellApi {..}
 
 -------------------------------------------------------------------------------
@@ -342,10 +347,23 @@ hsStruct cApi name =
 
 -- | A function.
 data HsFun = HsFun
-  { hsFunName :: !Text,
+  { -- | Name of the function.
+    hsFunName :: !Text,
+    -- | Parameters.
     hsFunParams :: [HsFunParam],
-    hsFunReturnType :: !CType
+    -- | Return type.
+    hsFunReturnType :: !CType,
+    -- | Indicates safety status (whether callbacks into Haskell ar involved).
+    hsFunSafe :: !HsFunSafe
   }
+  deriving (Eq, Show)
+
+-- | Safety status of a function.
+data HsFunSafe
+  = -- | A safe function may callback into the Haskell runtime.
+    Safe
+  | -- | An unsafe function may never callback into the Haskell runtime.
+    Unsafe
   deriving (Eq, Show)
 
 -- | A parameter to a function.
@@ -359,11 +377,13 @@ data HsFunParam = HsFunParam
 hsFun ::
   -- | The C API.
   CApi ->
+  -- | Safety status (uses callbacks or not).
+  HsFunSafe ->
   -- | Name of the function to extract.
   Text ->
   -- | Haskell function.
   HsFun
-hsFun cApi name =
+hsFun cApi safety name =
   let cfn :: Parse.CFun
       cfn = Parse.cApiFuns cApi Map.! name
 
@@ -373,4 +393,4 @@ hsFun cApi name =
 
       params :: [HsFunParam]
       params = params' <&> \(Parse.CFunParam n t) -> HsFunParam n t
-   in HsFun name params typ
+   in HsFun name params typ safety
