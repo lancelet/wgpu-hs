@@ -9,19 +9,15 @@
 -- Instance of the WGPU API Haskell bindings.
 module WGPU.Internal.Instance
   ( -- * Instance
-
-    --
-    -- $instance
     Instance (..),
     withPlatformInstance,
     withInstance,
 
     -- * Logging
-    LogCallback,
     LogLevel (..),
     setLogLevel,
-    logLevelToText,
-    logStdout,
+    connectLog,
+    disconnectLog,
 
     -- * Version
     Version (..),
@@ -33,37 +29,15 @@ where
 import Data.Bits (shiftR, (.&.))
 import Data.Text (Text)
 import qualified Data.Text as Text
-import qualified Data.Text.IO as TextIO
 import Data.Word (Word32, Word8)
-import Foreign (Ptr, freeHaskellFunPtr, nullFunPtr)
-import Foreign.C (CChar, peekCString)
 import qualified System.Info
 import WGPU.Internal.Memory (ToRaw, raw)
 import WGPU.Raw.Dynamic (withWGPU)
-import WGPU.Raw.Generated.Enum.WGPULogLevel (WGPULogLevel (WGPULogLevel))
+import WGPU.Raw.Generated.Enum.WGPULogLevel (WGPULogLevel)
 import qualified WGPU.Raw.Generated.Enum.WGPULogLevel as WGPULogLevel
 import WGPU.Raw.Generated.Fun (WGPUHsInstance)
 import qualified WGPU.Raw.Generated.Fun as RawFun
-import WGPU.Raw.Types (WGPULogCallback)
-
--- $instance
---
--- The Haskell bindings to WGPU use a value of type 'Instance' as a handle to
--- the rest of the API. An 'Instance' value is obtained by loading a dynamic
--- library at runtime, using the 'withInstance' function. A typical invocation
--- might look like this:
---
--- @
--- 'withInstance' "libwgpu_native.dylib" (Just 'logStdOut') $ \inst -> do
---   -- set the logging level for the instance
---   'setLogLevel' inst 'Warn'
---   -- run the rest of the program ...
--- @
---
--- The dynamic library @libwgpu_native.dylib@ is obtained by compiling the
--- Rust project <https://github.com/gfx-rs/wgpu-native wgpu-native>. Care
--- should be take to compile a version of @libwgpu_native.dylib@ which is
--- compatible with the API in these bindings.
+import qualified WGPU.Raw.Log as RawLog
 
 -------------------------------------------------------------------------------
 
@@ -87,9 +61,6 @@ instance ToRaw Instance WGPUHsInstance where
 -- per-platform name for the library, based on the value returned by
 -- 'System.Info.os'.
 withPlatformInstance ::
-  -- | Optional logging callback. @'Just' 'logStdout'@ can be supplied here to
-  --   print log messages to @stdout@ for debugging purposes.
-  Maybe LogCallback ->
   -- | The Program. A function which takes an 'Instance' and returns an IO
   --   action that uses the instance.
   (Instance -> IO a) ->
@@ -103,35 +74,13 @@ withPlatformInstance = withInstance platformDylibName
 withInstance ::
   -- | Name of the @wgpu-native@ dynamic library, or a complete path to it.
   FilePath ->
-  -- | Optional logging callback. @'Just' 'logStdout'@ can be supplied here to
-  --   print log messages to @stdout@ for debugging purposes.
-  Maybe LogCallback ->
   -- | The Program. A function which takes an 'Instance' and returns an IO
   --   action that uses the instance.
   (Instance -> IO a) ->
   -- | IO action which loads the WGPU 'Instance', passes it to the program, and
   --   returns the result of running the program.
   IO a
-withInstance dylibPath mLog program =
-  withWGPU dylibPath $
-    \winst -> do
-      -- create the logging callback if necessary
-      logCallback_c <- case mLog of
-        Nothing -> pure nullFunPtr
-        Just logFn -> mkLogCallback . toRawLogCallback $ logFn
-      RawFun.wgpuSetLogCallback winst logCallback_c
-
-      -- run the program
-      result <- program (Instance winst)
-
-      -- free the logging callback
-      case mLog of
-        Nothing -> pure ()
-        Just _ -> do
-          RawFun.wgpuSetLogCallback winst nullFunPtr
-          freeHaskellFunPtr logCallback_c
-
-      pure result
+withInstance dylibPath program = withWGPU dylibPath $ program . Instance
 
 -- | Return the dynamic library name for a given platform.
 --
@@ -157,38 +106,10 @@ data LogLevel
   | Error
   deriving (Eq, Show)
 
--- | Logging callback function.
-type LogCallback = LogLevel -> Text -> IO ()
-
 -- | Set the current logging level for the instance.
 setLogLevel :: Instance -> LogLevel -> IO ()
 setLogLevel inst lvl =
   RawFun.wgpuSetLogLevel (wgpuHsInstance inst) (logLevelToWLogLevel lvl)
-
--- | Create a C callback from a Haskell logging function.
-foreign import ccall "wrapper"
-  mkLogCallback ::
-    (WGPULogLevel -> Ptr CChar -> IO ()) ->
-    IO WGPULogCallback
-
--- | Convert a logging callback function to the form required by the Raw API.
-toRawLogCallback :: LogCallback -> (WGPULogLevel -> Ptr CChar -> IO ())
-toRawLogCallback logFn wLogLevel cMsg = do
-  msg <- Text.pack <$> peekCString cMsg
-  logFn (wLogLevelToLogLevel wLogLevel) msg
-
--- | Convert a raw API logging level into a 'LogLevel'.
---
--- Any unknown log levels become an 'Error'.
-wLogLevelToLogLevel :: WGPULogLevel -> LogLevel
-wLogLevelToLogLevel wLvl =
-  case wLvl of
-    WGPULogLevel.Trace -> Trace
-    WGPULogLevel.Debug -> Debug
-    WGPULogLevel.Info -> Info
-    WGPULogLevel.Warn -> Warn
-    WGPULogLevel.Error -> Error
-    _ -> Error
 
 -- | Convert a 'LogLevel' value into the type required by the raw API.
 logLevelToWLogLevel :: LogLevel -> WGPULogLevel
@@ -200,22 +121,13 @@ logLevelToWLogLevel lvl =
     Warn -> WGPULogLevel.Warn
     Error -> WGPULogLevel.Error
 
--- | Convert a 'LogLevel' to a text string.
-logLevelToText :: LogLevel -> Text
-logLevelToText lvl =
-  case lvl of
-    Trace -> "Trace"
-    Debug -> "Debug"
-    Info -> "Info"
-    Warn -> "Warn"
-    Error -> "Error"
+-- | Connect a stdout logger to the instance.
+connectLog :: Instance -> IO ()
+connectLog inst = RawLog.connectLog (wgpuHsInstance inst)
 
--- | A logging function which prints to @stdout@.
---
--- This logging function can be supplied to 'withInstance' to print logging
--- messages to @stdout@ for debugging purposes.
-logStdout :: LogLevel -> Text -> IO ()
-logStdout lvl msg = TextIO.putStrLn $ "[" <> logLevelToText lvl <> "]: " <> msg
+-- | Disconnect a stdout logger from the instance.
+disconnectLog :: Instance -> IO ()
+disconnectLog inst = RawLog.disconnectLog (wgpuHsInstance inst)
 
 -------------------------------------------------------------------------------
 
