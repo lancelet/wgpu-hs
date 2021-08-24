@@ -3,7 +3,14 @@
 
 module WGPU.CodeGen.Pretty where
 
-import Chronos (Datetime, SubsecondPrecision (SubsecondPrecisionAuto), encode_YmdHMS, now, timeToDatetime, w3c)
+import Chronos
+  ( Datetime,
+    SubsecondPrecision (SubsecondPrecisionAuto),
+    encode_YmdHMS,
+    now,
+    timeToDatetime,
+    w3c,
+  )
 import Data.Foldable (find, for_)
 import Data.Functor ((<&>))
 import Data.List (intersperse)
@@ -34,6 +41,7 @@ import WGPU.CodeGen.Haskell
     HsEnumW32Member (HsEnumW32Member),
     HsFun (HsFun),
     HsFunParam (HsFunParam),
+    HsFunSafe (Safe, Unsafe),
     HsStruct (HsStruct, hsStructMembers),
     HsStructMember (HsStructMember),
     hsStructName,
@@ -387,6 +395,7 @@ docHsFuns api metadata base modPrefix =
         intersperse hardline $
           [ "{-# OPTIONS_GHC -Wno-unused-imports #-}",
             "{-# LANGUAGE ForeignFunctionInterface #-}",
+            "{-# LANGUAGE CApiFFI #-}",
             "{-# LANGUAGE RecordWildCards #-}",
             "{-# LANGUAGE RankNTypes #-}",
             "{-# LANGUAGE NoImplicitPrelude #-}"
@@ -414,7 +423,7 @@ docHsFuns api metadata base modPrefix =
         <> ( indent 2 $
                mconcat $
                  intersperse ("," <> hardline) $
-                   haskellApiFuns api <&> \(HsFun n ps t) ->
+                   haskellApiFuns api <&> \(HsFun n ps t _) ->
                      pretty n <+> "::" <+> docFnType ps t
            )
         <> hardline
@@ -434,7 +443,7 @@ docHsFuns api metadata base modPrefix =
         <> ( indent 2 $
                ( mconcat $
                    intersperse hardline $
-                     haskellApiFuns api <&> \(HsFun n _ _) ->
+                     haskellApiFuns api <&> \(HsFun n _ _ _) ->
                        pretty n <+> "<-"
                          <+> "mk_wgpuhsfn_" <> pretty n
                          <+> "<$>"
@@ -449,9 +458,12 @@ docHsFuns api metadata base modPrefix =
     docDynamicDecls =
       mconcat $
         intersperse gap $
-          haskellApiFuns api <&> \(HsFun n ps t) ->
+          haskellApiFuns api <&> \(HsFun n ps t su) ->
             hang 2 $
-              "foreign import ccall \"dynamic\"" <> hardline
+              "foreign import ccall"
+                <+> pretty (safety su)
+                <+> "\"dynamic\""
+                <> hardline
                 <> "mk_wgpuhsfn_"
                 <> pretty n
                 <+> "::"
@@ -476,6 +488,12 @@ docHsFuns api metadata base modPrefix =
       mconcat $
         intersperse " -> " $
           ps <&> \(HsFunParam _ t) -> typDoc t
+
+    safety :: HsFunSafe -> Text
+    safety fs =
+      case fs of
+        Safe -> "safe"
+        Unsafe -> "unsafe"
 
 -------------------------------------------------------------------------------
 
