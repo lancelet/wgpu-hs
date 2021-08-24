@@ -256,7 +256,7 @@ haskellApi cApi =
                 "wgpuTextureDestroy",
                 -- from wgpu.h
                 "wgpuDevicePoll",
-                -- "wgpuSetLogCallback", -- special implementation
+                "wgpuSetLogCallback",
                 "wgpuSetLogLevel",
                 "wgpuGetVersion",
                 "wgpuRenderPassEncoderSetPushConstants"

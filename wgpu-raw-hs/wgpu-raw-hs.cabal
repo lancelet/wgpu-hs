@@ -36,6 +36,7 @@ common ghc-options
 library
   import:          base, ghc-options
   include-dirs:    cbits
+  c-sources:       cbits/log.c
   hs-source-dirs:  src
   exposed-modules:
     WGPU.Raw.Dynamic
@@ -141,6 +142,7 @@ library
     WGPU.Raw.Generated.Struct.WGPUVertexAttribute
     WGPU.Raw.Generated.Struct.WGPUVertexBufferLayout
     WGPU.Raw.Generated.Struct.WGPUVertexState
+    WGPU.Raw.Log
     WGPU.Raw.Types
 
   if flag(glfw)

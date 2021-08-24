@@ -149,10 +149,9 @@ module WGPU
 
     -- * Logging
     LogLevel (..),
-    LogCallback,
+    connectLog,
+    disconnectLog,
     setLogLevel,
-    logStdout,
-    logLevelToText,
 
     -- * Multipurpose
     CompareFunction (..),
@@ -265,8 +264,9 @@ import WGPU.Internal.Texture
 -- 'withPlatformInstance' or 'withInstance' bracketing functions:
 --
 -- @
--- 'withPlatformInstance' (Just 'logStdout') $ \inst -> do
---   -- set the logging level (optional)
+-- 'withPlatformInstance' $ \inst -> do
+--   -- attach the logger and set the logging level (optional)
+--   'connectLog' inst
 --   'setLogLevel' inst 'Warn'
 --   -- run the rest of the program...
 -- @
