@@ -13,6 +13,8 @@ import WGPU.Raw.Generated.Enum.WGPUSType (WGPUSType)
 import WGPU.Raw.Generated.Struct.WGPUChainedStruct (WGPUChainedStruct)
 import qualified WGPU.Raw.Generated.Struct.WGPUChainedStruct as WGPUChainedStruct
 
+-------------------------------------------------------------------------------
+
 -- | Represents a chained structure.
 data ChainedStruct a
   = -- | Empty chained structure, but with a type tag.

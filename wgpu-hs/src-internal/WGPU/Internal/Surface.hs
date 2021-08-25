@@ -14,6 +14,7 @@ module WGPU.Internal.Surface
   )
 where
 
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Graphics.UI.GLFW as GLFW
 import WGPU.Internal.Instance (Instance, wgpuHsInstance)
 import WGPU.Internal.Memory (ToRaw, raw, showWithPtr)
@@ -53,12 +54,14 @@ instance ToRaw Surface WGPUSurface where
 -- This function is not part of the @wgpu-native@ API, but is part of the
 -- Haskell API until the native WGPU API has a better story around windowing.
 createGLFWSurface ::
+  MonadIO m =>
   -- | API instance.
   Instance ->
   -- | GLFW window for which the surface will be created.
   GLFW.Window ->
   -- | IO action to create the surface.
-  IO Surface
-createGLFWSurface inst window = do
-  Surface inst
-    <$> WGPU.Raw.GLFWSurface.createSurface (wgpuHsInstance inst) window
+  m Surface
+createGLFWSurface inst window =
+  liftIO $
+    Surface inst
+      <$> WGPU.Raw.GLFWSurface.createSurface (wgpuHsInstance inst) window

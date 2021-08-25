@@ -26,7 +26,7 @@ module WGPU.Internal.Binding
   )
 where
 
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Cont (evalContT)
 import Data.Bits ((.|.))
 import Data.Text (Text)
@@ -35,7 +35,7 @@ import Data.Word (Word32, Word64)
 import Foreign (nullPtr)
 import Foreign.C (CBool (CBool))
 import WGPU.Internal.Device (Device, deviceInst, wgpuDevice)
-import WGPU.Internal.Instance (Instance, wgpuHsInstance)
+import WGPU.Internal.Instance (wgpuHsInstance)
 import WGPU.Internal.Memory (ToRaw, raw, rawArrayPtr, rawPtr, showWithPtr)
 import WGPU.Internal.SMaybe (SMaybe, fromSMaybe)
 import WGPU.Internal.Texture (TextureFormat, TextureViewDimension)
@@ -92,23 +92,22 @@ instance ToRaw BindGroupLayout WGPUBindGroupLayout where
 
 -- | Creates a 'BindGroupLayout'.
 createBindGroupLayout ::
+  MonadIO m =>
   -- | The device for which the bind group layout will be created.
   Device ->
   -- | Description of the bind group layout.
   BindGroupLayoutDescriptor ->
-  -- | IO action that creates a bind group layout.
-  IO BindGroupLayout
-createBindGroupLayout device ld = evalContT $ do
-  let inst :: Instance
-      inst = deviceInst device
+  -- | MonadIO action that creates a bind group layout.
+  m BindGroupLayout
+createBindGroupLayout device ld = liftIO . evalContT $ do
+  let inst = deviceInst device
 
   bindGroupLayoutDescriptor_ptr <- rawPtr ld
   rawBindGroupLayout <-
-    liftIO $
-      RawFun.wgpuDeviceCreateBindGroupLayout
-        (wgpuHsInstance inst)
-        (wgpuDevice device)
-        bindGroupLayoutDescriptor_ptr
+    RawFun.wgpuDeviceCreateBindGroupLayout
+      (wgpuHsInstance inst)
+      (wgpuDevice device)
+      bindGroupLayoutDescriptor_ptr
   pure (BindGroupLayout rawBindGroupLayout)
 
 -------------------------------------------------------------------------------
@@ -118,7 +117,7 @@ data BindGroupLayoutDescriptor = BindGroupLayoutDescriptor
   { -- | Debug label of the bind group layout.
     bindGroupLabel :: !Text,
     -- | Sequence of entries in this bind group layout.
-    entries :: Vector BindGroupLayoutEntry
+    entries :: !(Vector BindGroupLayoutEntry)
   }
   deriving (Eq, Show)
 

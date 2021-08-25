@@ -18,12 +18,14 @@ import WGPU.Internal.Memory (ToRaw, raw)
 import WGPU.Raw.Generated.Struct.WGPUColor (WGPUColor)
 import qualified WGPU.Raw.Generated.Struct.WGPUColor as WGPUColor
 
+-------------------------------------------------------------------------------
+
 -- | RGBA double-precision color.
 data Color = Color
-  { red :: Double,
-    green :: Double,
-    blue :: Double,
-    alpha :: Double
+  { red :: {-# UNPACK #-} !Double,
+    green :: {-# UNPACK #-} !Double,
+    blue :: {-# UNPACK #-} !Double,
+    alpha :: {-# UNPACK #-} !Double
   }
   deriving (Eq, Show)
 

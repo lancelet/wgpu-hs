@@ -14,14 +14,14 @@ module WGPU.Internal.CommandEncoder
   )
 where
 
-import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Trans.Cont (ContT (ContT), evalContT)
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Trans.Cont (evalContT)
 import Data.Text (Text)
-import Foreign (nullPtr, with)
+import Foreign (nullPtr)
 import WGPU.Internal.CommandBuffer (CommandBuffer (CommandBuffer))
 import WGPU.Internal.Device (Device, deviceInst, wgpuDevice)
 import WGPU.Internal.Instance (Instance, wgpuHsInstance)
-import WGPU.Internal.Memory (ToRaw, raw, rawPtr, showWithPtr)
+import WGPU.Internal.Memory (ToRaw, raw, rawPtr, showWithPtr, withCZeroingAfter)
 import qualified WGPU.Raw.Generated.Fun as RawFun
 import WGPU.Raw.Generated.Struct.WGPUCommandBufferDescriptor (WGPUCommandBufferDescriptor)
 import qualified WGPU.Raw.Generated.Struct.WGPUCommandBufferDescriptor as WGPUCommandBufferDescriptor
@@ -57,46 +57,46 @@ instance ToRaw CommandEncoder WGPUCommandEncoder where
 
 -- | Create an empty command encoder.
 createCommandEncoder ::
+  MonadIO m =>
   -- | Device for which to create the command encoder.
   Device ->
   -- | Debug label for the command encoder.
   Text ->
   -- | IO action that returns the command encoder.
-  IO CommandEncoder
-createCommandEncoder device label = evalContT $ do
+  m CommandEncoder
+createCommandEncoder device label = liftIO . evalContT $ do
   let inst = deviceInst device
   label_ptr <- rawPtr label
   commandEncoderDescriptor_ptr <-
-    ContT . with $
+    withCZeroingAfter $
       WGPUCommandEncoderDescriptor.WGPUCommandEncoderDescriptor
         { nextInChain = nullPtr,
           label = label_ptr
         }
   commandEncoderRaw <-
-    liftIO $
-      RawFun.wgpuDeviceCreateCommandEncoder
-        (wgpuHsInstance inst)
-        (wgpuDevice device)
-        commandEncoderDescriptor_ptr
+    RawFun.wgpuDeviceCreateCommandEncoder
+      (wgpuHsInstance inst)
+      (wgpuDevice device)
+      commandEncoderDescriptor_ptr
   pure (CommandEncoder inst commandEncoderRaw)
 
 -- | Finish encoding commands, returning a command buffer.
 commandEncoderFinish ::
+  MonadIO m =>
   -- | Command encoder to finish.
   CommandEncoder ->
   -- | Debugging label for the command buffer.
   Text ->
   -- | IO action which returns the command buffer.
-  IO CommandBuffer
-commandEncoderFinish commandEncoder label = evalContT $ do
+  m CommandBuffer
+commandEncoderFinish commandEncoder label = liftIO . evalContT $ do
   let inst = commandEncoderInst commandEncoder
-  commandBufferDescriptor_ptr <- rawPtr $ CommandBufferDescriptor label
+  commandBufferDescriptor_ptr <- rawPtr (CommandBufferDescriptor label)
   commandBufferRaw <-
-    liftIO $
-      RawFun.wgpuCommandEncoderFinish
-        (wgpuHsInstance inst)
-        (wgpuCommandEncoder commandEncoder)
-        commandBufferDescriptor_ptr
+    RawFun.wgpuCommandEncoderFinish
+      (wgpuHsInstance inst)
+      (wgpuCommandEncoder commandEncoder)
+      commandBufferDescriptor_ptr
   pure (CommandBuffer commandBufferRaw)
 
 -------------------------------------------------------------------------------

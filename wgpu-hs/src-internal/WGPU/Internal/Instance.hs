@@ -1,6 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
 -- Module      : WGPU.Internal.Instance
@@ -9,7 +10,8 @@
 -- Instance of the WGPU API Haskell bindings.
 module WGPU.Internal.Instance
   ( -- * Instance
-    Instance (..),
+    Instance,
+    wgpuHsInstance,
     withPlatformInstance,
     withInstance,
 
@@ -26,13 +28,14 @@ module WGPU.Internal.Instance
   )
 where
 
+import Control.Monad.IO.Class (MonadIO)
 import Data.Bits (shiftR, (.&.))
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Word (Word32, Word8)
 import qualified System.Info
 import WGPU.Internal.Memory (ToRaw, raw)
-import WGPU.Raw.Dynamic (withWGPU)
+import WGPU.Raw.Dynamic (InstanceHandle, instanceHandleInstance, withWGPU)
 import WGPU.Raw.Generated.Enum.WGPULogLevel (WGPULogLevel)
 import qualified WGPU.Raw.Generated.Enum.WGPULogLevel as WGPULogLevel
 import WGPU.Raw.Generated.Fun (WGPUHsInstance)
@@ -45,7 +48,10 @@ import qualified WGPU.Raw.Log as RawLog
 --
 -- An instance is loaded from a dynamic library using the 'withInstance'
 -- function.
-newtype Instance = Instance {wgpuHsInstance :: WGPUHsInstance}
+newtype Instance = Instance {instanceHandle :: InstanceHandle}
+
+wgpuHsInstance :: Instance -> WGPUHsInstance
+wgpuHsInstance = instanceHandleInstance . instanceHandle
 
 instance Show Instance where show _ = "<Instance>"
 
@@ -61,26 +67,33 @@ instance ToRaw Instance WGPUHsInstance where
 -- per-platform name for the library, based on the value returned by
 -- 'System.Info.os'.
 withPlatformInstance ::
-  -- | The Program. A function which takes an 'Instance' and returns an IO
-  --   action that uses the instance.
-  (Instance -> IO a) ->
-  -- | IO action which loads the WGPU 'Instance', passes it to the program, and
-  --   returns the result of running the program.
-  IO a
+  MonadIO m =>
+  -- | Bracketing function.
+  -- This can (for example) be something like 'Control.Exception.Safe.bracket'.
+  (m Instance -> (Instance -> m ()) -> r) ->
+  -- | Usage or action component of the bracketing function.
+  r
 withPlatformInstance = withInstance platformDylibName
 
 -- | Load the WGPU API from a dynamic library and supply an 'Instance' to a
 -- program.
 withInstance ::
+  forall m r.
+  MonadIO m =>
   -- | Name of the @wgpu-native@ dynamic library, or a complete path to it.
   FilePath ->
-  -- | The Program. A function which takes an 'Instance' and returns an IO
-  --   action that uses the instance.
-  (Instance -> IO a) ->
-  -- | IO action which loads the WGPU 'Instance', passes it to the program, and
-  --   returns the result of running the program.
-  IO a
-withInstance dylibPath program = withWGPU dylibPath $ program . Instance
+  -- | Bracketing function.
+  -- This can (for example) be something like 'Control.Exception.Safe.bracket'.
+  (m Instance -> (Instance -> m ()) -> r) ->
+  -- | Usage or action component of the bracketing function.
+  r
+withInstance dylibPath bkt = withWGPU dylibPath bkt'
+  where
+    bkt' :: m InstanceHandle -> (InstanceHandle -> m ()) -> r
+    bkt' create release =
+      bkt
+        (Instance <$> create)
+        (release . instanceHandle)
 
 -- | Return the dynamic library name for a given platform.
 --
@@ -107,7 +120,7 @@ data LogLevel
   deriving (Eq, Show)
 
 -- | Set the current logging level for the instance.
-setLogLevel :: Instance -> LogLevel -> IO ()
+setLogLevel :: MonadIO m => Instance -> LogLevel -> m ()
 setLogLevel inst lvl =
   RawFun.wgpuSetLogLevel (wgpuHsInstance inst) (logLevelToWLogLevel lvl)
 
@@ -122,11 +135,11 @@ logLevelToWLogLevel lvl =
     Error -> WGPULogLevel.Error
 
 -- | Connect a stdout logger to the instance.
-connectLog :: Instance -> IO ()
+connectLog :: MonadIO m => Instance -> m ()
 connectLog inst = RawLog.connectLog (wgpuHsInstance inst)
 
 -- | Disconnect a stdout logger from the instance.
-disconnectLog :: Instance -> IO ()
+disconnectLog :: MonadIO m => Instance -> m ()
 disconnectLog inst = RawLog.disconnectLog (wgpuHsInstance inst)
 
 -------------------------------------------------------------------------------
@@ -141,7 +154,7 @@ data Version = Version
   deriving (Eq, Show)
 
 -- | Return the exact version of the WGPU native instance.
-getVersion :: Instance -> IO Version
+getVersion :: MonadIO m => Instance -> m Version
 getVersion inst = w32ToVersion <$> RawFun.wgpuGetVersion (wgpuHsInstance inst)
   where
     w32ToVersion :: Word32 -> Version

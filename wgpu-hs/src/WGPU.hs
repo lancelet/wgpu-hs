@@ -192,14 +192,11 @@ import WGPU.Internal.Texture
 -- there are also early attempts to create a native binding (ie. a C language
 -- binding). Two implementations of the native binding are:
 --
---   * <https://github.com/gfx-rs/wgpu-native wgpu-native>: a Mozilla-backed
---     WebGPU native implementation, written in Rust, used in the Firefox web
---     browser. This is the binding to which this Haskell library is currently
---     tied.
+--   * <https://github.com/gfx-rs/wgpu-native wgpu-native>: a Rust
+--     implementation used in the Firefox web browser.
 --
---   * <https://dawn.googlesource.com/dawn dawn>: a Google-backed WebGPU native
---     implementation, written in C++, used in the Chrome web browser. In the
---     future, we hope to support this backend too.
+--   * <https://dawn.googlesource.com/dawn dawn>: a C++ implementation,used in
+--     the Chrome web browser.
 --
 -- The native bindings to WebGPU have the potential to become a portable,
 -- next-generation GPU API which is easy to use. Vulkan is also currently
@@ -261,10 +258,11 @@ import WGPU.Internal.Texture
 -- <https://github.com/gfx-rs/wgpu-native wgpu-native> is supported.
 --
 -- To load the dynamic library and obtain an instance, use the
--- 'withPlatformInstance' or 'withInstance' bracketing functions:
+-- 'withPlatformInstance' or 'withInstance' bracketing functions. These
+-- functions take a function that performs bracketing.
 --
 -- @
--- 'withPlatformInstance' $ \inst -> do
+-- 'withPlatformInstance' 'Control.Exception.Safe.bracket' $ \inst -> do
 --   -- attach the logger and set the logging level (optional)
 --   'connectLog' inst
 --   'setLogLevel' inst 'Warn'

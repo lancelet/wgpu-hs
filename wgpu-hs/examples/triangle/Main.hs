@@ -5,6 +5,7 @@
 -- | Let's draw a triangle!
 module Main (main) where
 
+import Control.Exception (bracket)
 import Control.Monad (unless, when)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except (runExceptT)
@@ -39,7 +40,7 @@ main = do
         TextIO.putStrLn "Failed to create GLFW window"
         exitFailure
 
-  WGPU.withPlatformInstance $ \inst -> do
+  WGPU.withPlatformInstance bracket $ \inst -> do
     -- attach the logger and set the logging level
     WGPU.connectLog inst
     WGPU.setLogLevel inst WGPU.Warn

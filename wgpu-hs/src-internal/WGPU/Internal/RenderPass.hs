@@ -24,7 +24,7 @@ module WGPU.Internal.RenderPass
   )
 where
 
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Cont (evalContT)
 import Data.Text (Text)
 import Data.Vector (Vector)
@@ -32,7 +32,11 @@ import Data.Word (Word32)
 import Foreign (nullPtr)
 import Foreign.C (CBool (CBool), CFloat (CFloat))
 import WGPU.Internal.Color (Color, transparentBlack)
-import WGPU.Internal.CommandEncoder (CommandEncoder, commandEncoderInst, wgpuCommandEncoder)
+import WGPU.Internal.CommandEncoder
+  ( CommandEncoder,
+    commandEncoderInst,
+    wgpuCommandEncoder,
+  )
 import WGPU.Internal.Instance (Instance, wgpuHsInstance)
 import WGPU.Internal.Memory (ToRaw, raw, rawArrayPtr, rawPtr, showWithPtr)
 import WGPU.Internal.SMaybe (SMaybe (SJust, SNothing))
@@ -104,6 +108,8 @@ data LoadOp a
     LoadOpLoad
   deriving (Eq, Show)
 
+-------------------------------------------------------------------------------
+
 -- | Operation to perform to the output attachment at the end of the render
 -- pass.
 data StoreOp
@@ -120,11 +126,15 @@ instance ToRaw StoreOp WGPUStoreOp where
         StoreOpStore -> WGPUStoreOp.Store
         StoreOpClear -> WGPUStoreOp.Clear
 
+-------------------------------------------------------------------------------
+
 data Operations a = Operations
   { load :: !(LoadOp a),
-    store :: StoreOp
+    store :: !StoreOp
   }
   deriving (Eq, Show)
+
+-------------------------------------------------------------------------------
 
 -- | Describes a color attachment to a render pass.
 data RenderPassColorAttachment = RenderPassColorAttachment
@@ -161,6 +171,8 @@ instance ToRaw RenderPassColorAttachment WGPURenderPassColorAttachment where
           storeOp = n_storeOp,
           clearColor = n_clearColor
         }
+
+-------------------------------------------------------------------------------
 
 -- | Describes a depth/stencil attachment to a render pass.
 data RenderPassDepthStencilAttachment = RenderPassDepthStencilAttachment
@@ -228,6 +240,8 @@ instance
           stencilReadOnly = n_stencilReadOnly
         }
 
+-------------------------------------------------------------------------------
+
 -- | Describes the attachments of a render pass.
 data RenderPassDescriptor = RenderPassDescriptor
   { -- | Debugging label for the render pass.
@@ -257,6 +271,8 @@ instance ToRaw RenderPassDescriptor WGPURenderPassDescriptor where
           occlusionQuerySet = WGPUQuerySet nullPtr
         }
 
+-------------------------------------------------------------------------------
+
 -- | Half open range. It includes the 'start' value but not the 'end' value.
 data Range a = Range
   { rangeStart :: !a,
@@ -264,41 +280,40 @@ data Range a = Range
   }
   deriving (Eq, Show)
 
+-------------------------------------------------------------------------------
+
 -- | Begins recording of a render pass.
 beginRenderPass ::
+  MonadIO m =>
   -- | @CommandEncoder@ to contain the render pass.
   CommandEncoder ->
   -- | Description of the render pass.
   RenderPassDescriptor ->
   -- | IO action which returns the render pass encoder.
-  IO RenderPassEncoder
-beginRenderPass commandEncoder rpd = evalContT $ do
-  let inst :: Instance
-      inst = commandEncoderInst commandEncoder
-
+  m RenderPassEncoder
+beginRenderPass commandEncoder rpd = liftIO . evalContT $ do
+  let inst = commandEncoderInst commandEncoder
   renderPassDescriptor_ptr <- rawPtr rpd
   renderPassEncoderRaw <-
-    liftIO $
-      RawFun.wgpuCommandEncoderBeginRenderPass
-        (wgpuHsInstance inst)
-        (wgpuCommandEncoder commandEncoder)
-        renderPassDescriptor_ptr
+    RawFun.wgpuCommandEncoderBeginRenderPass
+      (wgpuHsInstance inst)
+      (wgpuCommandEncoder commandEncoder)
+      renderPassDescriptor_ptr
   pure (RenderPassEncoder inst renderPassEncoderRaw)
 
 -- | Sets the active render pipeline.
 --
 -- Subsequent draw calls will exhibit the behaviour defined by the pipeline.
 renderPassSetPipeline ::
+  MonadIO m =>
   -- | Render pass encoder on which to act.
   RenderPassEncoder ->
   -- | Render pipeline to set active.
   RenderPipeline ->
   -- | IO action which sets the active render pipeline.
-  IO ()
+  m ()
 renderPassSetPipeline renderPassEncoder renderPipeline = do
-  let inst :: Instance
-      inst = renderPassEncoderInst renderPassEncoder
-
+  let inst = renderPassEncoderInst renderPassEncoder
   RawFun.wgpuRenderPassEncoderSetPipeline
     (wgpuHsInstance inst)
     (wgpuRenderPassEncoder renderPassEncoder)
@@ -306,6 +321,7 @@ renderPassSetPipeline renderPassEncoder renderPipeline = do
 
 -- | Draws primitives from the active vertex buffers.
 renderPassDraw ::
+  MonadIO m =>
   -- | Render pass encoder on which to act.
   RenderPassEncoder ->
   -- | Range of vertices to draw.
@@ -313,11 +329,9 @@ renderPassDraw ::
   -- | Range of instances to draw.
   Range Word32 ->
   -- | IO action which stores the draw command.
-  IO ()
+  m ()
 renderPassDraw renderPassEncoder vertices instances = do
-  let inst :: Instance
-      inst = renderPassEncoderInst renderPassEncoder
-
+  let inst = renderPassEncoderInst renderPassEncoder
   RawFun.wgpuRenderPassEncoderDraw
     (wgpuHsInstance inst)
     (wgpuRenderPassEncoder renderPassEncoder)
@@ -328,14 +342,13 @@ renderPassDraw renderPassEncoder vertices instances = do
 
 -- | Finish recording of a render pass.
 endRenderPass ::
+  MonadIO m =>
   -- | Render pass encoder on which to finish recording.
   RenderPassEncoder ->
   -- | IO action that finishes recording.
-  IO ()
+  m ()
 endRenderPass renderPassEncoder = do
-  let inst :: Instance
-      inst = renderPassEncoderInst renderPassEncoder
-
+  let inst = renderPassEncoderInst renderPassEncoder
   RawFun.wgpuRenderPassEncoderEndPass
     (wgpuHsInstance inst)
     (wgpuRenderPassEncoder renderPassEncoder)

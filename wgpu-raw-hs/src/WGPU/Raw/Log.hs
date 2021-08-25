@@ -7,20 +7,23 @@ module WGPU.Raw.Log
   )
 where
 
+import Control.Monad.IO.Class (MonadIO)
 import Foreign (nullFunPtr)
 import WGPU.Raw.Generated.Fun (WGPUHsInstance, wgpuSetLogCallback)
 import WGPU.Raw.Types (WGPULogCallback)
 
 -- | Connect the supplied logging function for logging to stdout.
 connectLog ::
+  MonadIO m =>
   WGPUHsInstance ->
-  IO ()
+  m ()
 connectLog inst = wgpuSetLogCallback inst wgpuhs_logging_callback
 
 -- | Disconnnect the supplied logging function for logging to stdout.
 disconnectLog ::
+  MonadIO m =>
   WGPUHsInstance ->
-  IO ()
+  m ()
 disconnectLog inst = wgpuSetLogCallback inst nullFunPtr
 
 foreign import ccall "&wgpuhs_logging_callback"
