@@ -21,7 +21,7 @@ module WGPU.Internal.Shader
   )
 where
 
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Cont (evalContT)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as ByteString
@@ -32,7 +32,7 @@ import Foreign (Ptr, castPtr, sizeOf)
 import Foreign.C (CChar)
 import WGPU.Internal.ChainedStruct (ChainedStruct (EmptyChain, PtrChain))
 import WGPU.Internal.Device (Device, deviceInst, wgpuDevice)
-import WGPU.Internal.Instance (Instance, wgpuHsInstance)
+import WGPU.Internal.Instance (wgpuHsInstance)
 import WGPU.Internal.Memory (ToRaw, ToRawPtr, raw, rawPtr, showWithPtr)
 import qualified WGPU.Raw.Generated.Enum.WGPUSType as WGPUSType
 import qualified WGPU.Raw.Generated.Fun as RawFun
@@ -67,26 +67,26 @@ instance ToRaw ShaderModule WGPUShaderModule where
 
 -- | Create a shader module from either SPIR-V or WGSL source code.
 createShaderModule ::
+  MonadIO m =>
   -- | Device for the shader.
   Device ->
   -- | Descriptor of the shader module.
   ShaderModuleDescriptor ->
   -- | IO action producing the shader module.
-  IO ShaderModule
-createShaderModule device smd = evalContT $ do
-  let inst :: Instance
-      inst = deviceInst device
+  m ShaderModule
+createShaderModule device smd = liftIO . evalContT $ do
+  let inst = deviceInst device
   shaderModuleDescriptor_ptr <- rawPtr smd
   rawShaderModule <-
-    liftIO $
-      RawFun.wgpuDeviceCreateShaderModule
-        (wgpuHsInstance inst)
-        (wgpuDevice device)
-        shaderModuleDescriptor_ptr
+    RawFun.wgpuDeviceCreateShaderModule
+      (wgpuHsInstance inst)
+      (wgpuDevice device)
+      shaderModuleDescriptor_ptr
   pure (ShaderModule rawShaderModule)
 
 -- | Create a shader module from SPIR-V source code.
 createShaderModuleSPIRV ::
+  MonadIO m =>
   -- | Device for which the shader should be created.
   Device ->
   -- | Debugging label for the shader.
@@ -94,7 +94,7 @@ createShaderModuleSPIRV ::
   -- | Shader source code (SPIR-V bytestring).
   SPIRV ->
   -- | IO action creating the shader module.
-  IO ShaderModule
+  m ShaderModule
 createShaderModuleSPIRV device label spirv =
   createShaderModule device smd
   where
@@ -107,6 +107,7 @@ createShaderModuleSPIRV device label spirv =
 
 -- | Create a shader module from WGSL source code.
 createShaderModuleWGSL ::
+  MonadIO m =>
   -- | Device for which the shader should be created.
   Device ->
   -- | Debugging label for the shader.
@@ -114,7 +115,7 @@ createShaderModuleWGSL ::
   -- | Shader source code (WGSL source string).
   WGSL ->
   -- | IO action creating the shader module.
-  IO ShaderModule
+  m ShaderModule
 createShaderModuleWGSL device label wgsl =
   createShaderModule device smd
   where

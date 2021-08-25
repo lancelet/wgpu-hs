@@ -1,6 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -Wno-deferred-type-errors #-}
 
 -- |
 -- Module      : WGPU.Internal.SwapChain
@@ -19,16 +20,24 @@ module WGPU.Internal.SwapChain
   )
 where
 
-import Control.Concurrent (MVar, newEmptyMVar, putMVar, takeMVar)
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Cont (evalContT)
 import Data.Text (Text)
 import Data.Word (Word32)
-import Foreign (Ptr, freeHaskellFunPtr, nullPtr)
+import Foreign (Ptr, nullPtr)
 import WGPU.Internal.Adapter (Adapter, wgpuAdapter)
 import WGPU.Internal.Device (Device, deviceInst, wgpuDevice)
 import WGPU.Internal.Instance (Instance, wgpuHsInstance)
-import WGPU.Internal.Memory (ToRaw, raw, rawPtr, showWithPtr)
+import WGPU.Internal.Memory
+  ( ToRaw,
+    freeHaskellFunPtr,
+    newEmptyMVar,
+    putMVar,
+    raw,
+    rawPtr,
+    showWithPtr,
+    takeMVar,
+  )
 import WGPU.Internal.Surface (Surface, surfaceInst, wgpuSurface)
 import WGPU.Internal.Texture (TextureFormat, TextureUsage, TextureView (TextureView), textureFormatFromRaw)
 import WGPU.Raw.Generated.Enum.WGPUPresentMode (WGPUPresentMode)
@@ -137,37 +146,40 @@ instance ToRaw PresentMode WGPUPresentMode where
 -- | Returns an optimal texture format to use for the swapchain with this
 --   adapter and surface.
 getSwapChainPreferredFormat ::
+  MonadIO m =>
   -- | @Surface@ for which to obtain an optimal texture format.
   Surface ->
   -- | @Adapter@ for which to obtain an optimal texture format.
   Adapter ->
   -- | IO action which returns the optimal texture format.
-  IO TextureFormat
+  m TextureFormat
 getSwapChainPreferredFormat surface adapter = do
-  let inst :: Instance
-      inst = surfaceInst surface
+  let inst = surfaceInst surface
 
-  textureFormatMVar :: MVar WGPUTextureFormat <- newEmptyMVar
-
-  let textureFormatCallback :: WGPUTextureFormat -> Ptr () -> IO ()
-      textureFormatCallback tf _ = putMVar textureFormatMVar tf
-
-  textureFormatCallback_c <-
-    mkSurfaceGetPreferredFormatCallback textureFormatCallback
+  textureFormatMVar <- newEmptyMVar
+  callback <-
+    mkSurfaceGetPreferredFormatCallback (\tf _ -> putMVar textureFormatMVar tf)
 
   RawFun.wgpuSurfaceGetPreferredFormat
     (wgpuHsInstance inst)
     (wgpuSurface surface)
     (wgpuAdapter adapter)
-    textureFormatCallback_c
+    callback
     nullPtr
 
   textureFormat <- textureFormatFromRaw <$> takeMVar textureFormatMVar
-  freeHaskellFunPtr textureFormatCallback_c
+  freeHaskellFunPtr callback
   pure textureFormat
 
+mkSurfaceGetPreferredFormatCallback ::
+  MonadIO m =>
+  (WGPUTextureFormat -> Ptr () -> IO ()) ->
+  m WGPUSurfaceGetPreferredFormatCallback
+mkSurfaceGetPreferredFormatCallback =
+  liftIO . mkSurfaceGetPreferredFormatCallbackIO
+
 foreign import ccall "wrapper"
-  mkSurfaceGetPreferredFormatCallback ::
+  mkSurfaceGetPreferredFormatCallbackIO ::
     (WGPUTextureFormat -> Ptr () -> IO ()) ->
     IO WGPUSurfaceGetPreferredFormatCallback
 
@@ -178,6 +190,7 @@ foreign import ccall "wrapper"
 -- To determine the preferred 'TextureFormat' for the 'Surface', use the
 -- 'getSwapChainPreferredFormat' function.
 createSwapChain ::
+  MonadIO m =>
   -- | @Device@ for which the @SwapChain@ will be created.
   Device ->
   -- | @Surface@ for which the @SwapChain@ will be created.
@@ -185,32 +198,29 @@ createSwapChain ::
   -- | Description of the @SwapChain@ to be created.
   SwapChainDescriptor ->
   -- | IO action which creates the swap chain.
-  IO SwapChain
-createSwapChain device surface scd = evalContT $ do
-  let inst :: Instance
-      inst = deviceInst device
-
+  m SwapChain
+createSwapChain device surface scd = liftIO . evalContT $ do
+  let inst = deviceInst device
   swapChainDescriptor_ptr <- rawPtr scd
   rawSwapChain <-
-    liftIO $
-      RawFun.wgpuDeviceCreateSwapChain
-        (wgpuHsInstance inst)
-        (wgpuDevice device)
-        (wgpuSurface surface)
-        swapChainDescriptor_ptr
+    RawFun.wgpuDeviceCreateSwapChain
+      (wgpuHsInstance inst)
+      (wgpuDevice device)
+      (wgpuSurface surface)
+      swapChainDescriptor_ptr
   pure (SwapChain inst rawSwapChain)
 
 -------------------------------------------------------------------------------
 
 -- | Get the 'TextureView' for the current swap chain frame.
 getSwapChainCurrentTextureView ::
+  MonadIO m =>
   -- | Swap chain from which to fetch the current texture view.
   SwapChain ->
   -- | IO action which returns the current swap chain texture view.
-  IO TextureView
+  m TextureView
 getSwapChainCurrentTextureView swapChain = do
-  let inst :: Instance
-      inst = swapChainInst swapChain
+  let inst = swapChainInst swapChain
   TextureView
     <$> RawFun.wgpuSwapChainGetCurrentTextureView
       (wgpuHsInstance inst)
@@ -220,11 +230,11 @@ getSwapChainCurrentTextureView swapChain = do
 
 -- | Present the latest swap chain image.
 swapChainPresent ::
+  MonadIO m =>
   -- | Swap chain to present.
   SwapChain ->
   -- | IO action which presents the swap chain image.
-  IO ()
+  m ()
 swapChainPresent swapChain = do
-  let inst :: Instance
-      inst = swapChainInst swapChain
+  let inst = swapChainInst swapChain
   RawFun.wgpuSwapChainPresent (wgpuHsInstance inst) (wgpuSwapChain swapChain)

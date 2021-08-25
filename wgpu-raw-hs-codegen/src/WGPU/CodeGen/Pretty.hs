@@ -285,7 +285,11 @@ docHsStructFile api metadata base modPrefix struct =
           <> "sizeOf _ =" <+> "(#size" <+> pretty name
           <> ")"
           <> hardline
+          <> "{-# INLINABLE sizeOf #-}"
+          <> hardline
           <> "alignment = sizeOf"
+          <> hardline
+          <> "{-# INLINABLE alignment #-}"
           <> hardline
           <> "peek ptr = do"
           <> hardline
@@ -303,6 +307,8 @@ docHsStructFile api metadata base modPrefix struct =
                           ]
              )
           <> hardline
+          <> "{-# INLINABLE peek #-}"
+          <> hardline
           <> "poke ptr" <+> pretty name
           <> "{..}" <+> "= do"
           <> hardline
@@ -317,6 +323,8 @@ docHsStructFile api metadata base modPrefix struct =
                                <+> pretty mName
                      )
              )
+          <> hardline
+          <> "{-# INLINABLE poke #-}"
 
     memberInfo :: [(Doc ann, TypeInfo ann)]
     memberInfo = getMemberInfo <$> members
@@ -378,15 +386,17 @@ docHsFuns api metadata base modPrefix =
               hardline
               [ "import Foreign",
                 "import Foreign.C",
-                "import Prelude (IO, String, (<$>), pure)",
+                "import Control.Monad.IO.Class (MonadIO, liftIO)",
+                "import Prelude (IO, String, (<$>), pure, ($))",
                 "import WGPU.Raw.Types"
               ]
         )
           <> hardline
           <> docImports,
         docDataInstance,
+        docMonadIOFns,
         docLoadDynamicInstance,
-        docDynamicDecls
+        docDynamicDeclsIO
       ]
   where
     docExtensions :: Doc ann
@@ -395,7 +405,6 @@ docHsFuns api metadata base modPrefix =
         intersperse hardline $
           [ "{-# OPTIONS_GHC -Wno-unused-imports #-}",
             "{-# LANGUAGE ForeignFunctionInterface #-}",
-            "{-# LANGUAGE CApiFFI #-}",
             "{-# LANGUAGE RecordWildCards #-}",
             "{-# LANGUAGE RankNTypes #-}",
             "{-# LANGUAGE NoImplicitPrelude #-}"
@@ -424,11 +433,53 @@ docHsFuns api metadata base modPrefix =
                mconcat $
                  intersperse ("," <> hardline) $
                    haskellApiFuns api <&> \(HsFun n ps t _) ->
-                     pretty n <+> "::" <+> docFnType ps t
+                     pretty n <> "IO" <+> "::" <+> docFnTypeIO ps t
            )
         <> hardline
         <> "}"
         <> hardline
+
+    docMonadIOFns :: Doc ann
+    docMonadIOFns =
+      mconcat $ intersperse gap $ haskellApiFuns api <&> docMonadIOFn
+
+    docMonadIOFn :: HsFun -> Doc ann
+    docMonadIOFn (HsFun n ps t _) =
+      ( pretty n <+> "::" <+> "(MonadIO m)" <+> "=>"
+          <+> "WGPUHsInstance"
+          <+> "->"
+          <+> docFnParams ps
+          <> (if not (null ps) then " -> " else "")
+          <> "m ("
+          <> typDoc t
+          <> ")"
+      )
+        <> hardline
+        <> ( hang 2 $
+               pretty n
+                 <+> "inst"
+                 <+> mconcat
+                   ( intersperse
+                       " "
+                       ([1 .. (length ps)] <&> \i -> "param" <> pretty i)
+                   )
+                 <+> "="
+                 <> hardline
+                 <> "liftIO"
+                 <+> "$"
+                 <+> pretty n
+                 <> "IO"
+                 <+> "inst"
+                 <+> mconcat
+                   ( intersperse
+                       " "
+                       ([1 .. (length ps)] <&> \i -> "param" <> pretty i)
+                   )
+           )
+        <> hardline
+        <> "{-# INLINABLE "
+        <> pretty n
+        <> " #-}"
 
     docLoadDynamicInstance :: Doc ann
     docLoadDynamicInstance =
@@ -444,7 +495,7 @@ docHsFuns api metadata base modPrefix =
                ( mconcat $
                    intersperse hardline $
                      haskellApiFuns api <&> \(HsFun n _ _ _) ->
-                       pretty n <+> "<-"
+                       pretty n <> "IO" <+> "<-"
                          <+> "mk_wgpuhsfn_" <> pretty n
                          <+> "<$>"
                          <+> "load"
@@ -454,8 +505,8 @@ docHsFuns api metadata base modPrefix =
                  <> "pure WGPUHsInstance{..}"
            )
 
-    docDynamicDecls :: Doc ann
-    docDynamicDecls =
+    docDynamicDeclsIO :: Doc ann
+    docDynamicDeclsIO =
       mconcat $
         intersperse gap $
           haskellApiFuns api <&> \(HsFun n ps t su) ->
@@ -474,10 +525,10 @@ docHsFuns api metadata base modPrefix =
                 <> typDoc t
                 <> "))"
                 <+> "->"
-                <+> docFnType ps t
+                <+> docFnTypeIO ps t
 
-    docFnType :: [HsFunParam] -> CType -> Doc ann
-    docFnType ps t =
+    docFnTypeIO :: [HsFunParam] -> CType -> Doc ann
+    docFnTypeIO ps t =
       docFnParams ps <> (if not (null ps) then " -> " else " ")
         <> "IO ("
         <> typDoc t

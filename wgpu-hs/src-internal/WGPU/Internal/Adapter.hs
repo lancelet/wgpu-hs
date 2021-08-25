@@ -15,13 +15,21 @@ module WGPU.Internal.Adapter
   )
 where
 
-import Control.Concurrent (MVar, newEmptyMVar, putMVar, takeMVar)
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Cont (evalContT)
-import Foreign (freeHaskellFunPtr, nullPtr)
+import Foreign (nullPtr)
 import Foreign.Ptr (Ptr)
 import WGPU.Internal.Instance (Instance, wgpuHsInstance)
-import WGPU.Internal.Memory (ToRaw, raw, rawPtr, showWithPtr)
+import WGPU.Internal.Memory
+  ( ToRaw,
+    freeHaskellFunPtr,
+    newEmptyMVar,
+    putMVar,
+    raw,
+    rawPtr,
+    showWithPtr,
+    takeMVar,
+  )
 import WGPU.Internal.Surface (Surface, surfaceInst)
 import qualified WGPU.Raw.Generated.Fun as RawFun
 import WGPU.Raw.Generated.Struct.WGPURequestAdapterOptions
@@ -64,37 +72,40 @@ instance ToRaw Adapter WGPUAdapter where
 --
 -- This action blocks until an available adapter is returned.
 requestAdapter ::
+  (MonadIO m) =>
   -- | Existing surface for which to request an @Adapter@.
   Surface ->
   -- | The returned @Adapter@, if it could be retrieved.
-  IO (Maybe Adapter)
-requestAdapter surface = evalContT $ do
+  m (Maybe Adapter)
+requestAdapter surface = liftIO . evalContT $ do
   let inst = surfaceInst surface
 
-  adapterMVar :: MVar WGPUAdapter <- liftIO newEmptyMVar
-
-  let adapterCallback :: WGPUAdapter -> Ptr () -> IO ()
-      adapterCallback adapter _ = putMVar adapterMVar adapter
-  adapterCallback_c <- liftIO $ mkAdapterCallback adapterCallback
+  adaptmv <- newEmptyMVar
+  callback <- mkAdapterCallback (\a _ -> putMVar adaptmv a)
 
   requestAdapterOptions_ptr <- rawPtr (RequestAdapterOptions surface)
-  liftIO $
-    RawFun.wgpuInstanceRequestAdapter
-      (wgpuHsInstance inst)
-      (WGPUInstance nullPtr)
-      requestAdapterOptions_ptr
-      adapterCallback_c
-      nullPtr
+  RawFun.wgpuInstanceRequestAdapter
+    (wgpuHsInstance inst)
+    (WGPUInstance nullPtr)
+    requestAdapterOptions_ptr
+    callback
+    nullPtr
 
-  adapter <- liftIO $ takeMVar adapterMVar
-  liftIO $ freeHaskellFunPtr adapterCallback_c
+  adapter <- takeMVar adaptmv
+  freeHaskellFunPtr callback
 
   pure $ case adapter of
     WGPUAdapter ptr | ptr == nullPtr -> Nothing
     WGPUAdapter _ -> Just (Adapter inst adapter)
 
+mkAdapterCallback ::
+  MonadIO m =>
+  (WGPUAdapter -> Ptr () -> IO ()) ->
+  m WGPURequestAdapterCallback
+mkAdapterCallback = liftIO . mkAdapterCallbackIO
+
 foreign import ccall "wrapper"
-  mkAdapterCallback ::
+  mkAdapterCallbackIO ::
     (WGPUAdapter -> Ptr () -> IO ()) -> IO WGPURequestAdapterCallback
 
 newtype RequestAdapterOptions = RequestAdapterOptions {compatibleSurface :: Surface}

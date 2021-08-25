@@ -1,5 +1,13 @@
 # Revision history for wgpu-raw-hs
 
+## x.x.x.x -- xxxx-xx-xx
+
+- Switch to using `MonadIO` instead of plain `IO` when possible.
+- Supply bracketing functions for `withXXX`.
+- Wrap raw `WGPUHsInstance` into a new structure which explicitly retains a
+  reference to the dynamic library. This helps with resource freeing.
+- Add extra `{-# INLINABLE #-}` pragmas.
+
 ## 0.2.0.1 -- 2021-08-24
 
 - Linux support.

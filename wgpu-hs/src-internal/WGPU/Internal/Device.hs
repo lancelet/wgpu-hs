@@ -19,18 +19,27 @@ module WGPU.Internal.Device
   )
 where
 
-import Control.Concurrent (MVar, newEmptyMVar, putMVar, takeMVar)
-import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Trans.Cont (ContT (ContT), evalContT)
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Trans.Cont (evalContT)
 import Data.Default (Default, def)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Word (Word32)
-import Foreign (Ptr, freeHaskellFunPtr, nullPtr, with)
+import Foreign (Ptr, nullPtr)
 import WGPU.Internal.Adapter (Adapter, adapterInst, wgpuAdapter)
 import WGPU.Internal.ChainedStruct (ChainedStruct (EmptyChain, PtrChain))
 import WGPU.Internal.Instance (Instance, wgpuHsInstance)
-import WGPU.Internal.Memory (ToRaw, raw, rawPtr, showWithPtr)
+import WGPU.Internal.Memory
+  ( ToRaw,
+    freeHaskellFunPtr,
+    newEmptyMVar,
+    putMVar,
+    raw,
+    rawPtr,
+    showWithPtr,
+    takeMVar,
+    withCZeroingAfter,
+  )
 import WGPU.Raw.Generated.Enum.WGPUNativeFeature (WGPUNativeFeature)
 import qualified WGPU.Raw.Generated.Enum.WGPUNativeFeature as WGPUNativeFeature
 import qualified WGPU.Raw.Generated.Enum.WGPUNativeSType as WGPUSType
@@ -178,44 +187,47 @@ instance ToRaw DeviceDescriptor WGPUDeviceExtras where
 --
 -- This action blocks until an available device is returned.
 requestDevice ::
+  MonadIO m =>
   -- | @Adapter@ for which the device will be returned.
   Adapter ->
   -- | The features and limits requested for the device.
   DeviceDescriptor ->
   -- | The returned @Device@, if it could be retrieved.
-  IO (Maybe Device)
-requestDevice adapter deviceDescriptor = evalContT $ do
+  m (Maybe Device)
+requestDevice adapter deviceDescriptor = liftIO . evalContT $ do
   let inst = adapterInst adapter
 
-  deviceMVar :: MVar WGPUDevice <- liftIO newEmptyMVar
-
-  let deviceCallback :: WGPUDevice -> Ptr () -> IO ()
-      deviceCallback device _ = putMVar deviceMVar device
-  deviceCallback_c <- liftIO $ mkDeviceCallback deviceCallback
+  deviceMVar <- newEmptyMVar
+  callback <- mkDeviceCallback (\d _ -> putMVar deviceMVar d)
 
   deviceExtras_ptr <- rawPtr deviceDescriptor
   nextInChain_ptr <- rawPtr (PtrChain WGPUSType.DeviceExtras deviceExtras_ptr)
   deviceDescriptor_ptr <-
-    ContT . with $
+    withCZeroingAfter $
       WGPUDeviceDescriptor.WGPUDeviceDescriptor
         { nextInChain = nextInChain_ptr
         }
 
-  liftIO $
-    RawFun.wgpuAdapterRequestDevice
-      (wgpuHsInstance inst)
-      (wgpuAdapter adapter)
-      deviceDescriptor_ptr
-      deviceCallback_c
-      nullPtr
+  RawFun.wgpuAdapterRequestDevice
+    (wgpuHsInstance inst)
+    (wgpuAdapter adapter)
+    deviceDescriptor_ptr
+    callback
+    nullPtr
 
-  device <- liftIO $ takeMVar deviceMVar
-  liftIO $ freeHaskellFunPtr deviceCallback_c
+  device <- takeMVar deviceMVar
+  freeHaskellFunPtr callback
 
   pure $ case device of
     WGPUDevice ptr | ptr == nullPtr -> Nothing
     WGPUDevice _ -> Just (Device inst device)
 
+mkDeviceCallback ::
+  (MonadIO m) =>
+  (WGPUDevice -> Ptr () -> IO ()) ->
+  m WGPURequestDeviceCallback
+mkDeviceCallback = liftIO . mkDeviceCallbackIO
+
 foreign import ccall "wrapper"
-  mkDeviceCallback ::
+  mkDeviceCallbackIO ::
     (WGPUDevice -> Ptr () -> IO ()) -> IO WGPURequestDeviceCallback

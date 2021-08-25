@@ -40,7 +40,7 @@ module WGPU.Internal.Pipeline
   )
 where
 
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Cont (evalContT)
 import Data.Bits ((.|.))
 import Data.Default (Default, def)
@@ -53,7 +53,7 @@ import Foreign (nullPtr)
 import Foreign.C (CFloat (CFloat))
 import WGPU.Internal.Binding (BindGroupLayout)
 import WGPU.Internal.Device (Device, deviceInst, wgpuDevice)
-import WGPU.Internal.Instance (Instance, wgpuHsInstance)
+import WGPU.Internal.Instance (wgpuHsInstance)
 import WGPU.Internal.Memory (ToRaw, raw, rawArrayPtr, rawPtr, showWithPtr)
 import WGPU.Internal.Multipurpose (CompareFunction)
 import WGPU.Internal.RenderPass (RenderPipeline (RenderPipeline))
@@ -155,20 +155,20 @@ instance ToRaw PipelineLayoutDescriptor WGPUPipelineLayoutDescriptor where
 
 -- | Create a pipeline layout.
 createPipelineLayout ::
+  MonadIO m =>
   -- | The device for which the pipeline layout will be created.
   Device ->
   -- | Descriptor of the pipeline.
   PipelineLayoutDescriptor ->
-  IO PipelineLayout
-createPipelineLayout device pdl = evalContT $ do
+  m PipelineLayout
+createPipelineLayout device pdl = liftIO . evalContT $ do
   let inst = deviceInst device
   pipelineLayoutDescriptor_ptr <- rawPtr pdl
   rawPipelineLayout <-
-    liftIO $
-      RawFun.wgpuDeviceCreatePipelineLayout
-        (wgpuHsInstance inst)
-        (wgpuDevice device)
-        pipelineLayoutDescriptor_ptr
+    RawFun.wgpuDeviceCreatePipelineLayout
+      (wgpuHsInstance inst)
+      (wgpuDevice device)
+      pipelineLayoutDescriptor_ptr
   pure (PipelineLayout rawPipelineLayout)
 
 -------------------------------------------------------------------------------
@@ -248,11 +248,11 @@ instance ToRaw VertexFormat WGPUVertexFormat where
 -- | Vertex inputs (attributes) to shaders.
 data VertexAttribute = VertexAttribute
   { -- | Format of the input.
-    vertexFormat :: VertexFormat,
+    vertexFormat :: !VertexFormat,
     -- | Byte offset of the start of the input.
-    offset :: Word64,
+    offset :: !Word64,
     -- | Location for this input. Must match the location in the shader.
-    shaderLocation :: Word32
+    shaderLocation :: !Word32
   }
   deriving (Eq, Show)
 
@@ -879,19 +879,19 @@ instance ToRaw RenderPipelineDescriptor WGPURenderPipelineDescriptor where
           fragment = n_fragment
         }
 
+-------------------------------------------------------------------------------
+
 createRenderPipeline ::
+  MonadIO m =>
   Device ->
   RenderPipelineDescriptor ->
-  IO RenderPipeline
-createRenderPipeline device rpd = evalContT $ do
-  let inst :: Instance
-      inst = deviceInst device
-
+  m RenderPipeline
+createRenderPipeline device rpd = liftIO . evalContT $ do
+  let inst = deviceInst device
   renderPipelineDescriptor_ptr <- rawPtr rpd
   renderPipelineRaw <-
-    liftIO $
-      RawFun.wgpuDeviceCreateRenderPipeline
-        (wgpuHsInstance inst)
-        (wgpuDevice device)
-        renderPipelineDescriptor_ptr
+    RawFun.wgpuDeviceCreateRenderPipeline
+      (wgpuHsInstance inst)
+      (wgpuDevice device)
+      renderPipelineDescriptor_ptr
   pure (RenderPipeline renderPipelineRaw)

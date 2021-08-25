@@ -14,10 +14,9 @@ module WGPU.Internal.Queue
   )
 where
 
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Cont (evalContT)
 import Data.Vector (Vector)
-import Data.Word (Word32)
 import WGPU.Internal.CommandBuffer (CommandBuffer)
 import WGPU.Internal.Device (Device, deviceInst, wgpuDevice)
 import WGPU.Internal.Instance (Instance, wgpuHsInstance)
@@ -49,26 +48,21 @@ instance ToRaw Queue WGPUQueue where
 -------------------------------------------------------------------------------
 
 -- | Get the queue for a device.
-getQueue :: Device -> IO Queue
+getQueue :: MonadIO m => Device -> m Queue
 getQueue device = do
-  let queueInst :: Instance
-      queueInst = deviceInst device
+  let queueInst = deviceInst device
   wgpuQueue <-
     RawFun.wgpuDeviceGetQueue (wgpuHsInstance queueInst) (wgpuDevice device)
   pure Queue {..}
 
 -- | Submit a list of command buffers to a device queue.
-queueSubmit :: Queue -> Vector CommandBuffer -> IO ()
-queueSubmit queue cbs = evalContT $ do
-  let inst :: Instance
-      inst = queueInst queue
-  let commandCount :: Word32
-      commandCount = fromIntegral . length $ cbs
-
+queueSubmit :: MonadIO m => Queue -> Vector CommandBuffer -> m ()
+queueSubmit queue cbs = liftIO . evalContT $ do
+  let inst = queueInst queue
+  let commandCount = fromIntegral . length $ cbs
   commandBuffer_ptr <- rawArrayPtr cbs
-  liftIO $
-    RawFun.wgpuQueueSubmit
-      (wgpuHsInstance inst)
-      (wgpuQueue queue)
-      commandCount
-      commandBuffer_ptr
+  RawFun.wgpuQueueSubmit
+    (wgpuHsInstance inst)
+    (wgpuQueue queue)
+    commandCount
+    commandBuffer_ptr

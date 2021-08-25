@@ -64,14 +64,25 @@ module WGPU.Internal.Memory
     ToRawPtr (rawPtr),
 
     -- * Functions
+
+    -- ** Internal
     rawArrayPtr,
     showWithPtr,
+    withCZeroingAfter,
+
+    -- ** Lifted to MonadIO
+    newEmptyMVar,
+    takeMVar,
+    putMVar,
+    freeHaskellFunPtr,
+    poke,
   )
 where
 
-import Control.Monad (forM_)
-import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Trans.Cont (ContT (ContT), evalContT)
+import Control.Concurrent (MVar)
+import qualified Control.Concurrent (newEmptyMVar, putMVar, takeMVar)
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Trans.Cont (ContT (ContT), callCC)
 import Data.ByteString (ByteString)
 import Data.ByteString.Unsafe (unsafeUseAsCString)
 import Data.Text (Text)
@@ -80,16 +91,17 @@ import Data.Vector.Generic (Vector)
 import qualified Data.Vector.Generic as Vector
 import Data.Word (Word8)
 import Foreign
-  ( Ptr,
+  ( FunPtr,
+    Ptr,
     Storable,
     advancePtr,
+    alignment,
+    alloca,
     allocaArray,
     castPtr,
-    fillBytes,
-    poke,
     sizeOf,
-    with,
   )
+import qualified Foreign (fillBytes, freeHaskellFunPtr, poke)
 import Foreign.C (CBool, CChar, withCString)
 
 -------------------------------------------------------------------------------
@@ -104,7 +116,7 @@ import Foreign.C (CBool, CChar, withCString)
 class ToRaw a b | a -> b where
   -- | Convert a value to a raw representation, bracketing any resource
   -- management.
-  raw :: a -> ContT c IO b
+  raw :: a -> ContT r IO b
 
 -- | Represents a value of type @a@ that can be stored as type @(Ptr b)@ in the
 -- 'ContT' monad.
@@ -114,7 +126,7 @@ class ToRaw a b | a -> b where
 -- allocated for @('Ptr' b)@ must be allocated before the continuation is
 -- called, and freed afterward.
 class ToRawPtr a b where
-  rawPtr :: a -> ContT c IO (Ptr b)
+  rawPtr :: a -> ContT r IO (Ptr b)
 
 -------------------------------------------------------------------------------
 -- Derived Functionality
@@ -122,63 +134,105 @@ class ToRawPtr a b where
 -- | Return a pointer to an allocated array, populated with raw values from a
 -- vector.
 rawArrayPtr ::
-  forall v a b c.
+  forall v r a b.
   (ToRaw a b, Storable b, Vector v a) =>
   -- | Vector of values to store in a C array.
   v a ->
   -- | Pointer to the array with raw values stored in it.
-  ContT c IO (Ptr b)
-rawArrayPtr xs =
-  ContT $ \action -> do
-    let n :: Int
-        n = Vector.length xs
-    allocaArray n $ \arrayPtr ->
-      evalContT $ do
-        forM_
-          (zip (Vector.toList xs) [0 ..])
-          (\(x, i) -> pokeRaw x (advancePtr arrayPtr i))
-        liftIO (action arrayPtr)
-  where
-    pokeRaw :: a -> Ptr b -> ContT c IO ()
-    pokeRaw value raw_ptr = raw value >>= liftIO . poke raw_ptr
+  ContT r IO (Ptr b)
+rawArrayPtr xs = callCC $ \k -> do
+  let pokeRaw :: a -> Ptr b -> ContT c IO ()
+      pokeRaw value raw_ptr = raw value >>= liftIO . poke raw_ptr
+
+      n :: Int
+      n = Vector.length xs
+  arrayPtr <- allocaArrayC n
+  Vector.iforM_ xs $ \i x -> pokeRaw x (advancePtr arrayPtr i)
+  r <- k arrayPtr
+  zeroMemory arrayPtr (n * alignment (undefined :: b))
+  pure r
+{-# INLINEABLE rawArrayPtr #-}
 
 -------------------------------------------------------------------------------
 -- Instances
 
 -- Allow every ToRaw instance to be a ToRawPtr instance.
 instance {-# OVERLAPPABLE #-} (Storable b, ToRaw a b) => ToRawPtr a b where
-  rawPtr x = do
-    rawX <- raw x
-    ContT $ zeroingWith rawX
+  rawPtr x = raw x >>= withCZeroingAfter
+  {-# INLINEABLE rawPtr #-}
 
-instance ToRaw Bool CBool where raw x = pure (if x then 1 else 0)
+instance ToRaw Bool CBool where
+  raw x = pure (if x then 1 else 0)
+  {-# INLINE raw #-}
 
-instance ToRawPtr Text CChar where rawPtr = ContT . withCString . Text.unpack
+instance ToRawPtr Text CChar where
+  rawPtr = withCStringC . Text.unpack
+  {-# INLINEABLE rawPtr #-}
 
 instance ToRawPtr ByteString Word8 where
-  rawPtr byteString =
-    ContT $ \action -> unsafeUseAsCString byteString (action . castPtr)
+  rawPtr = fmap castPtr . unsafeUseAsCStringC
+  {-# INLINEABLE rawPtr #-}
 
 -------------------------------------------------------------------------------
--- Utils
+-- Continuation helpers
 
--- | Like 'with', but zeroes memory after the action has been performed.
---
--- Allocates memory for a value of type @a@ and fills the memory with the
--- 'Foreign.Storable' representation of the @a@ value.
-zeroingWith ::
-  Storable a =>
-  -- | Value to use.
-  a ->
-  -- | Action to perform with a pointer to the value.
-  (Ptr a -> IO b) ->
-  -- | Result of running the action.
-  IO b
-zeroingWith value action =
-  with value $ \value_ptr -> do
-    result <- action value_ptr
-    fillBytes value_ptr 0x00 (sizeOf value)
-    pure result
+allocaC :: Storable a => ContT r IO (Ptr a)
+allocaC = ContT alloca
+{-# INLINEABLE allocaC #-}
+
+allocaArrayC :: Storable a => Int -> ContT r IO (Ptr a)
+allocaArrayC sz = ContT (allocaArray sz)
+{-# INLINEABLE allocaArrayC #-}
+
+withCStringC :: String -> ContT r IO (Ptr CChar)
+withCStringC str = ContT (withCString str)
+{-# INLINEABLE withCStringC #-}
+
+unsafeUseAsCStringC :: ByteString -> ContT r IO (Ptr CChar)
+unsafeUseAsCStringC byteString = ContT (unsafeUseAsCString byteString)
+{-# INLINEABLE unsafeUseAsCStringC #-}
+
+withCZeroingAfter :: Storable a => a -> ContT r IO (Ptr a)
+withCZeroingAfter x = callCC $ \k -> do
+  ptr <- allocaC
+  poke ptr x
+  r <- k ptr
+  zeroMemory ptr (sizeOf x)
+  pure r
+{-# INLINEABLE withCZeroingAfter #-}
+
+-------------------------------------------------------------------------------
+-- Memory actions lifted to MonadIO
+
+newEmptyMVar :: MonadIO m => m (MVar a)
+newEmptyMVar = liftIO Control.Concurrent.newEmptyMVar
+{-# INLINEABLE newEmptyMVar #-}
+
+takeMVar :: MonadIO m => MVar a -> m a
+takeMVar = liftIO . Control.Concurrent.takeMVar
+{-# INLINEABLE takeMVar #-}
+
+putMVar :: MonadIO m => MVar a -> a -> m ()
+putMVar mvar x = liftIO $ Control.Concurrent.putMVar mvar x
+{-# INLINEABLE putMVar #-}
+
+poke :: (MonadIO m, Storable a) => Ptr a -> a -> m ()
+poke ptr value = liftIO (Foreign.poke ptr value)
+{-# INLINEABLE poke #-}
+
+freeHaskellFunPtr :: MonadIO m => FunPtr a -> m ()
+freeHaskellFunPtr = liftIO . Foreign.freeHaskellFunPtr
+{-# INLINEABLE freeHaskellFunPtr #-}
+
+fillBytes :: MonadIO m => Ptr a -> Word8 -> Int -> m ()
+fillBytes ptr x sz = liftIO (Foreign.fillBytes ptr x sz)
+{-# INLINEABLE fillBytes #-}
+
+zeroMemory :: MonadIO m => Ptr a -> Int -> m ()
+zeroMemory ptr = fillBytes ptr 0x00
+{-# INLINEABLE zeroMemory #-}
+
+-------------------------------------------------------------------------------
 
 -- | Formatter for 'Show' instances for opaque pointers.
 --
@@ -191,3 +245,4 @@ showWithPtr ::
   -- | Final show string.
   String
 showWithPtr name ptr = "<" <> name <> ":" <> show ptr <> ">"
+{-# INLINEABLE showWithPtr #-}
