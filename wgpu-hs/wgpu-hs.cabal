@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               wgpu-hs
-version:            0.2.0.1
+version:            0.3.0.0
 synopsis:           WGPU
 description:        A high-level binding to WGPU.
 bug-reports:        https://github.com/lancelet/wgpu-hs/issues
@@ -12,8 +12,18 @@ copyright:          Copyright (C) Jonathan Merritt, 2021
 category:           Graphics
 extra-source-files: CHANGELOG.md
 
+flag glfw
+  description: Enable GLFW integration
+  default:     True
+  manual:      True
+
 flag examples
   description: Build the examples
+  default:     True
+  manual:      True
+
+flag sdl2
+  description: Enable SDL2 integration
   default:     True
   manual:      True
 
@@ -50,12 +60,22 @@ library wgpu-hs-internal
     WGPU.Internal.SwapChain
     WGPU.Internal.Texture
 
+  if flag(glfw)
+    build-depends:   GLFW-b
+    exposed-modules: WGPU.Internal.GLFW.Surface
+
+  if flag(sdl2)
+    build-depends:   sdl2
+    exposed-modules: WGPU.Internal.SDL.Surface
+
   build-depends:
     , bytestring
     , data-default
-    , GLFW-b
+    , data-has
+    , lens
+    , mtl
+    , resourcet
     , text
-    , transformers
     , vector
     , wgpu-raw-hs
 
@@ -64,20 +84,59 @@ library
   hs-source-dirs:  src
   build-depends:
     , bytestring        ^>=0.10.12
+    , containers        ^>=0.6.5.1
     , data-default      ^>=0.7.1.1
-    , GLFW-b            ^>=3.3.0
+    , data-has          ^>=0.4.0.0
+    , lens              ^>=5.0.1
+    , mtl               ^>=2.2.2
+    , resourcet         ^>=1.2.4.3
+    , safe-exceptions   ^>=0.1.7.2
     , text              ^>=1.2.4
-    , transformers      ^>=0.5.6
     , vector            ^>=0.12.3
     , wgpu-hs-internal
-    , wgpu-raw-hs       ==0.2.0.1
+    , wgpu-raw-hs       ==0.3.0.0
 
-  exposed-modules: WGPU
+  exposed-modules:
+    WGPU
+    WGPU.Classy
 
-executable triangle
+  if flag(glfw)
+    build-depends:   GLFW-b ^>=3.3.0
+    exposed-modules: WGPU.GLFW.Surface
+
+  if flag(sdl2)
+    build-depends:   sdl2 ^>=2.5.3.0
+    exposed-modules:
+      WGPU.BoneYard.SimpleSDL
+      WGPU.SDL.Surface
+
+executable triangle-sdl
   import:         base, ghc-options
 
-  if flag(examples)
+  if (flag(examples) && flag(sdl2))
+    build-depends:
+      , data-default     ^>=0.7.1.1
+      , data-has         ^>=0.4.0.0
+      , lens             ^>=5.0.1
+      , mtl              ^>=2.2.2
+      , resourcet        ^>=1.2.4.3
+      , safe-exceptions  ^>=0.1.7.2
+      , sdl2             ^>=2.5.3.0
+      , string-qq        ^>=0.0.4
+      , text             ^>=1.2.4
+      , vector           ^>=0.12.3
+      , wgpu-hs
+
+  else
+    buildable: False
+
+  hs-source-dirs: examples/triangle-sdl
+  main-is:        TriangleSDL.hs
+
+executable triangle-glfw
+  import:         base, ghc-options
+
+  if (flag(examples) && flag(glfw))
     build-depends:
       , data-default  ^>=0.7.1.1
       , GLFW-b        ^>=3.3.0
@@ -88,5 +147,5 @@ executable triangle
   else
     buildable: False
 
-  hs-source-dirs: examples/triangle
-  main-is:        Main.hs
+  hs-source-dirs: examples/triangle-glfw
+  main-is:        TriangleGLFW.hs

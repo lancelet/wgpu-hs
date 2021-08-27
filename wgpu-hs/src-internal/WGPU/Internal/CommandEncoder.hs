@@ -15,13 +15,19 @@ module WGPU.Internal.CommandEncoder
 where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Trans.Cont (evalContT)
 import Data.Text (Text)
 import Foreign (nullPtr)
 import WGPU.Internal.CommandBuffer (CommandBuffer (CommandBuffer))
 import WGPU.Internal.Device (Device, deviceInst, wgpuDevice)
 import WGPU.Internal.Instance (Instance, wgpuHsInstance)
-import WGPU.Internal.Memory (ToRaw, raw, rawPtr, showWithPtr, withCZeroingAfter)
+import WGPU.Internal.Memory
+  ( ToRaw,
+    evalContT,
+    raw,
+    rawPtr,
+    showWithPtr,
+    withCZeroingAfter,
+  )
 import qualified WGPU.Raw.Generated.Fun as RawFun
 import WGPU.Raw.Generated.Struct.WGPUCommandBufferDescriptor (WGPUCommandBufferDescriptor)
 import qualified WGPU.Raw.Generated.Struct.WGPUCommandBufferDescriptor as WGPUCommandBufferDescriptor

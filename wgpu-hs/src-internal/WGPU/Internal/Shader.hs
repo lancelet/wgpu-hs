@@ -22,7 +22,6 @@ module WGPU.Internal.Shader
 where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Trans.Cont (evalContT)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as ByteString
 import Data.String (IsString)
@@ -33,7 +32,14 @@ import Foreign.C (CChar)
 import WGPU.Internal.ChainedStruct (ChainedStruct (EmptyChain, PtrChain))
 import WGPU.Internal.Device (Device, deviceInst, wgpuDevice)
 import WGPU.Internal.Instance (wgpuHsInstance)
-import WGPU.Internal.Memory (ToRaw, ToRawPtr, raw, rawPtr, showWithPtr)
+import WGPU.Internal.Memory
+  ( ToRaw,
+    ToRawPtr,
+    evalContT,
+    raw,
+    rawPtr,
+    showWithPtr,
+  )
 import qualified WGPU.Raw.Generated.Enum.WGPUSType as WGPUSType
 import qualified WGPU.Raw.Generated.Fun as RawFun
 import WGPU.Raw.Generated.Struct.WGPUShaderModuleDescriptor (WGPUShaderModuleDescriptor)

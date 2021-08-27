@@ -1,10 +1,14 @@
 # Revision history for wgpu-hs
 
-## x.x.x.x -- xxxx-xx-xx
+## 0.3.0.0 -- 2021-08-30
 
+- Add Classy interface - supply parameters from `ReaderT`.
+- Add SDL surfaces.
+- Add `BoneYard` package for helpful application skeleton code.
 - Switch to using `MonadIO` instead of plain `IO` when possible.
 - Supply bracketing functions for `withXXX`.
 - Add extra `{-# INLINABLE #-}` pragmas.
+- Add ability to query Adapter properties.
 
 ## 0.2.0.1 -- 2021-08-24
 

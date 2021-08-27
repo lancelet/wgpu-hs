@@ -26,10 +26,11 @@ import qualified Graphics.UI.GLFW as GLFW
 import System.Exit (exitFailure)
 import WGPU (SwapChain)
 import qualified WGPU
+import qualified WGPU.GLFW.Surface
 
 main :: IO ()
 main = do
-  TextIO.putStrLn "Triangle Example"
+  TextIO.putStrLn "GLFW Triangle Example"
 
   -- start GLFW
   initResult <- GLFW.init
@@ -40,7 +41,7 @@ main = do
   -- create the GLFW window without a "client API"
   GLFW.windowHint (GLFW.WindowHint'ClientAPI GLFW.ClientAPI'NoAPI)
   window <- do
-    mWin <- GLFW.createWindow 640 480 "Triangle" Nothing Nothing
+    mWin <- GLFW.createWindow 640 480 "GLFW Triangle Example" Nothing Nothing
     case mWin of
       Just w -> pure w
       Nothing -> do
@@ -137,7 +138,7 @@ data Resources = Resources
 getResources :: WGPU.Instance -> GLFW.Window -> IO (Either Error Resources)
 getResources inst window = runExceptT $ do
   -- fetch a surface for the window
-  surface <- lift $ WGPU.createGLFWSurface inst window
+  surface <- lift $ WGPU.GLFW.Surface.createSurface inst window
   -- fetch an adapter for the surface
   adapter <-
     maybeToExceptT
@@ -184,6 +185,7 @@ updateSwapChain device surface window textureFormat swapChainMVar = do
       putMVar swapChainMVar (curSz, swapChain)
       pure swapChain
     (Just swapChain, False) -> pure swapChain
+    _ -> error "should not reach this case"
 
 draw ::
   WGPU.Device ->

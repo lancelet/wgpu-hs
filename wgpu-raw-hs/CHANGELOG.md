@@ -1,7 +1,8 @@
 # Revision history for wgpu-raw-hs
 
-## x.x.x.x -- xxxx-xx-xx
+## 0.3.0.0 -- 2021-08-30
 
+- Add SDL surfaces.
 - Switch to using `MonadIO` instead of plain `IO` when possible.
 - Supply bracketing functions for `withXXX`.
 - Wrap raw `WGPUHsInstance` into a new structure which explicitly retains a

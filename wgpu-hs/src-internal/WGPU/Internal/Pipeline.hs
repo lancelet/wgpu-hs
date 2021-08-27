@@ -41,7 +41,6 @@ module WGPU.Internal.Pipeline
 where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Trans.Cont (evalContT)
 import Data.Bits ((.|.))
 import Data.Default (Default, def)
 import Data.Int (Int32)
@@ -54,7 +53,14 @@ import Foreign.C (CFloat (CFloat))
 import WGPU.Internal.Binding (BindGroupLayout)
 import WGPU.Internal.Device (Device, deviceInst, wgpuDevice)
 import WGPU.Internal.Instance (wgpuHsInstance)
-import WGPU.Internal.Memory (ToRaw, raw, rawArrayPtr, rawPtr, showWithPtr)
+import WGPU.Internal.Memory
+  ( ToRaw,
+    evalContT,
+    raw,
+    rawArrayPtr,
+    rawPtr,
+    showWithPtr,
+  )
 import WGPU.Internal.Multipurpose (CompareFunction)
 import WGPU.Internal.RenderPass (RenderPipeline (RenderPipeline))
 import WGPU.Internal.SMaybe (SMaybe (SJust, SNothing))

@@ -3,22 +3,14 @@
 -- |
 -- Module      : WGPU.Internal.Surface
 -- Description : Platform-specific surfaces.
---
--- Device-specific surfaces.
 module WGPU.Internal.Surface
   ( -- * Types
     Surface (..),
-
-    -- * Functions
-    createGLFWSurface,
   )
 where
 
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import qualified Graphics.UI.GLFW as GLFW
-import WGPU.Internal.Instance (Instance, wgpuHsInstance)
+import WGPU.Internal.Instance (Instance)
 import WGPU.Internal.Memory (ToRaw, raw, showWithPtr)
-import qualified WGPU.Raw.GLFWSurface
 import WGPU.Raw.Types (WGPUSurface (WGPUSurface))
 
 -------------------------------------------------------------------------------
@@ -46,22 +38,3 @@ instance Eq Surface where
 
 instance ToRaw Surface WGPUSurface where
   raw = pure . wgpuSurface
-
--------------------------------------------------------------------------------
-
--- | Create a WGPU 'Surface' for a GLFW 'GLFW.Window'.
---
--- This function is not part of the @wgpu-native@ API, but is part of the
--- Haskell API until the native WGPU API has a better story around windowing.
-createGLFWSurface ::
-  MonadIO m =>
-  -- | API instance.
-  Instance ->
-  -- | GLFW window for which the surface will be created.
-  GLFW.Window ->
-  -- | IO action to create the surface.
-  m Surface
-createGLFWSurface inst window =
-  liftIO $
-    Surface inst
-      <$> WGPU.Raw.GLFWSurface.createSurface (wgpuHsInstance inst) window

@@ -27,7 +27,6 @@ module WGPU.Internal.Binding
 where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Trans.Cont (evalContT)
 import Data.Bits ((.|.))
 import Data.Text (Text)
 import Data.Vector (Vector)
@@ -36,7 +35,14 @@ import Foreign (nullPtr)
 import Foreign.C (CBool (CBool))
 import WGPU.Internal.Device (Device, deviceInst, wgpuDevice)
 import WGPU.Internal.Instance (wgpuHsInstance)
-import WGPU.Internal.Memory (ToRaw, raw, rawArrayPtr, rawPtr, showWithPtr)
+import WGPU.Internal.Memory
+  ( ToRaw,
+    evalContT,
+    raw,
+    rawArrayPtr,
+    rawPtr,
+    showWithPtr,
+  )
 import WGPU.Internal.SMaybe (SMaybe, fromSMaybe)
 import WGPU.Internal.Texture (TextureFormat, TextureViewDimension)
 import WGPU.Raw.Generated.Enum.WGPUBufferBindingType (WGPUBufferBindingType)
