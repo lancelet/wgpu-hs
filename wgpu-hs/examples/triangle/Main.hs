@@ -5,18 +5,26 @@
 -- | Let's draw a triangle!
 module Main (main) where
 
+import Control.Concurrent
+  ( MVar,
+    newEmptyMVar,
+    putMVar,
+    tryReadMVar,
+    tryTakeMVar,
+  )
 import Control.Exception (bracket)
-import Control.Monad (unless, when)
+import Control.Monad (unless)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except (runExceptT)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), maybeToExceptT)
 import Data.Default (def)
-import Data.IORef (IORef, newIORef, readIORef, writeIORef)
+import Data.Maybe (isNothing)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.IO as TextIO
 import qualified Graphics.UI.GLFW as GLFW
 import System.Exit (exitFailure)
+import WGPU (SwapChain)
 import qualified WGPU
 
 main :: IO ()
@@ -30,7 +38,6 @@ main = do
     exitFailure
 
   -- create the GLFW window without a "client API"
-  windowSzRef <- newIORef (640, 480)
   GLFW.windowHint (GLFW.WindowHint'ClientAPI GLFW.ClientAPI'NoAPI)
   window <- do
     mWin <- GLFW.createWindow 640 480 "Triangle" Nothing Nothing
@@ -54,19 +61,9 @@ main = do
 
     shader <- WGPU.createShaderModuleWGSL device "shader" shaderSrc
     swapChainFormat <- WGPU.getSwapChainPreferredFormat surface adapter
-    swapChain <-
-      WGPU.createSwapChain
-        device
-        surface
-        WGPU.SwapChainDescriptor
-          { swapChainLabel = "SwapChain",
-            usage = WGPU.TextureUsageRenderAttachment,
-            swapChainFormat = swapChainFormat,
-            width = 640,
-            height = 480,
-            presentMode = WGPU.PresentModeFifo
-          }
-    swapChainRef <- newIORef swapChain
+    swapChainMVar <- newEmptyMVar
+    _ <- updateSwapChain device surface window swapChainFormat swapChainMVar
+
     pipelineLayout <-
       WGPU.createPipelineLayout
         device
@@ -93,35 +90,18 @@ main = do
                   ]
           }
 
+    let doDraw =
+          draw
+            device
+            surface
+            window
+            pipeline
+            queue
+            swapChainFormat
+            swapChainMVar
+
     let loop = do
-          -- update swapchain if the window size is different
-          updateSwapChain device surface window swapChainFormat windowSzRef swapChainRef
-          -- render
-          nextTexture <- WGPU.getSwapChainCurrentTextureView swapChain
-          encoder <- WGPU.createCommandEncoder device "Command Encoder"
-          renderPass <-
-            WGPU.beginRenderPass
-              encoder
-              ( WGPU.RenderPassDescriptor
-                  { renderPassLabel = "Render Pass",
-                    colorAttachments =
-                      [ WGPU.RenderPassColorAttachment
-                          nextTexture
-                          WGPU.SNothing
-                          ( WGPU.Operations
-                              (WGPU.LoadOpClear (WGPU.Color 0 0 0 1))
-                              WGPU.StoreOpStore
-                          )
-                      ],
-                    depthStencilAttachment = WGPU.SNothing
-                  }
-              )
-          WGPU.renderPassSetPipeline renderPass pipeline
-          WGPU.renderPassDraw renderPass (WGPU.Range 0 3) (WGPU.Range 0 1)
-          WGPU.endRenderPass renderPass
-          commandBuffer <- WGPU.commandEncoderFinish encoder "Command Buffer"
-          WGPU.queueSubmit queue [commandBuffer]
-          WGPU.swapChainPresent swapChain
+          doDraw
 
           -- handle GLFW quit event
           GLFW.pollEvents
@@ -180,27 +160,70 @@ updateSwapChain ::
   WGPU.Surface ->
   GLFW.Window ->
   WGPU.TextureFormat ->
-  IORef (Int, Int) ->
-  IORef WGPU.SwapChain ->
-  IO ()
-updateSwapChain device surface window textureFormat szRef swapChainRef = do
-  oldSz <- readIORef szRef
+  MVar ((Int, Int), WGPU.SwapChain) ->
+  IO WGPU.SwapChain
+updateSwapChain device surface window textureFormat swapChainMVar = do
+  mOldSwapChain <- fmap snd <$> tryReadMVar swapChainMVar
+  oldSz <- maybe (0, 0) fst <$> tryReadMVar swapChainMVar
   curSz <- GLFW.getWindowSize window
-  when (curSz /= oldSz) $ do
-    writeIORef szRef curSz
-    swapChain <-
-      WGPU.createSwapChain
-        device
-        surface
-        WGPU.SwapChainDescriptor
-          { swapChainLabel = "SwapChain",
-            usage = WGPU.TextureUsageRenderAttachment,
-            swapChainFormat = textureFormat,
-            width = fromIntegral . fst $ curSz,
-            height = fromIntegral . snd $ curSz,
-            presentMode = WGPU.PresentModeFifo
+  case (mOldSwapChain, curSz /= oldSz) of
+    x | isNothing (fst x) || snd x -> do
+      swapChain <-
+        WGPU.createSwapChain
+          device
+          surface
+          WGPU.SwapChainDescriptor
+            { swapChainLabel = "SwapChain",
+              usage = WGPU.TextureUsageRenderAttachment,
+              swapChainFormat = textureFormat,
+              width = fromIntegral . fst $ curSz,
+              height = fromIntegral . snd $ curSz,
+              presentMode = WGPU.PresentModeFifo
+            }
+      _ <- tryTakeMVar swapChainMVar
+      putMVar swapChainMVar (curSz, swapChain)
+      pure swapChain
+    (Just swapChain, False) -> pure swapChain
+
+draw ::
+  WGPU.Device ->
+  WGPU.Surface ->
+  GLFW.Window ->
+  WGPU.RenderPipeline ->
+  WGPU.Queue ->
+  WGPU.TextureFormat ->
+  MVar ((Int, Int), WGPU.SwapChain) ->
+  IO ()
+draw device surface window pipeline queue swapChainFormat swapChainMVar = do
+  -- update swapchain if the window size is different
+  swapChain <-
+    updateSwapChain device surface window swapChainFormat swapChainMVar
+  -- render
+  nextTexture <- WGPU.getSwapChainCurrentTextureView swapChain
+  encoder <- WGPU.createCommandEncoder device "Command Encoder"
+  renderPass <-
+    WGPU.beginRenderPass
+      encoder
+      ( WGPU.RenderPassDescriptor
+          { renderPassLabel = "Render Pass",
+            colorAttachments =
+              [ WGPU.RenderPassColorAttachment
+                  nextTexture
+                  WGPU.SNothing
+                  ( WGPU.Operations
+                      (WGPU.LoadOpClear (WGPU.Color 0 0 0 1))
+                      WGPU.StoreOpStore
+                  )
+              ],
+            depthStencilAttachment = WGPU.SNothing
           }
-    writeIORef swapChainRef swapChain
+      )
+  WGPU.renderPassSetPipeline renderPass pipeline
+  WGPU.renderPassDraw renderPass (WGPU.Range 0 3) (WGPU.Range 0 1)
+  WGPU.endRenderPass renderPass
+  commandBuffer <- WGPU.commandEncoderFinish encoder "Command Buffer"
+  WGPU.queueSubmit queue [commandBuffer]
+  WGPU.swapChainPresent swapChain
 
 shaderSrc :: WGPU.WGSL
 shaderSrc =
