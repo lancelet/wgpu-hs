@@ -21,7 +21,6 @@ module WGPU.Internal.SwapChain
 where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Trans.Cont (evalContT)
 import Data.Text (Text)
 import Data.Word (Word32)
 import Foreign (Ptr, nullPtr)
@@ -30,6 +29,7 @@ import WGPU.Internal.Device (Device, deviceInst, wgpuDevice)
 import WGPU.Internal.Instance (Instance, wgpuHsInstance)
 import WGPU.Internal.Memory
   ( ToRaw,
+    evalContT,
     freeHaskellFunPtr,
     newEmptyMVar,
     putMVar,

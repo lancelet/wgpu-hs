@@ -61,11 +61,15 @@
 module WGPU.Internal.Memory
   ( -- * Classes
     ToRaw (raw),
+    FromRaw (fromRaw),
     ToRawPtr (rawPtr),
+    FromRawPtr (fromRawPtr),
 
     -- * Functions
 
     -- ** Internal
+    evalContT,
+    allocaC,
     rawArrayPtr,
     showWithPtr,
     withCZeroingAfter,
@@ -81,8 +85,8 @@ where
 
 import Control.Concurrent (MVar)
 import qualified Control.Concurrent (newEmptyMVar, putMVar, takeMVar)
+import Control.Monad.Cont (ContT (ContT), callCC, runContT)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Trans.Cont (ContT (ContT), callCC)
 import Data.ByteString (ByteString)
 import Data.ByteString.Unsafe (unsafeUseAsCString)
 import Data.Text (Text)
@@ -99,10 +103,12 @@ import Foreign
     alloca,
     allocaArray,
     castPtr,
+    nullPtr,
+    peek,
     sizeOf,
   )
 import qualified Foreign (fillBytes, freeHaskellFunPtr, poke)
-import Foreign.C (CBool, CChar, withCString)
+import Foreign.C (CBool, CChar, peekCString, withCString)
 
 -------------------------------------------------------------------------------
 -- Type Classes
@@ -127,6 +133,14 @@ class ToRaw a b | a -> b where
 -- called, and freed afterward.
 class ToRawPtr a b where
   rawPtr :: a -> ContT r IO (Ptr b)
+
+-- | Represents a type @a@ that can be read from a raw value @b@.
+class FromRaw b a | a -> b where
+  fromRaw :: MonadIO m => b -> m a
+
+-- | Represents a type @a@ that can be read from a raw pointer @b@.
+class FromRawPtr b a where
+  fromRawPtr :: MonadIO m => Ptr b -> m a
 
 -------------------------------------------------------------------------------
 -- Derived Functionality
@@ -161,6 +175,10 @@ instance {-# OVERLAPPABLE #-} (Storable b, ToRaw a b) => ToRawPtr a b where
   rawPtr x = raw x >>= withCZeroingAfter
   {-# INLINEABLE rawPtr #-}
 
+instance {-# OVERLAPPABLE #-} (Storable b, FromRaw b a) => FromRawPtr b a where
+  fromRawPtr ptr = (liftIO . peek) ptr >>= fromRaw
+  {-# INLINEABLE fromRawPtr #-}
+
 instance ToRaw Bool CBool where
   raw x = pure (if x then 1 else 0)
   {-# INLINE raw #-}
@@ -172,6 +190,13 @@ instance ToRawPtr Text CChar where
 instance ToRawPtr ByteString Word8 where
   rawPtr = fmap castPtr . unsafeUseAsCStringC
   {-# INLINEABLE rawPtr #-}
+
+instance FromRaw (Ptr CChar) Text where
+  fromRaw ptr =
+    if ptr == nullPtr
+      then pure Text.empty
+      else (liftIO . fmap Text.pack . peekCString) ptr
+  {-# INLINEABLE fromRaw #-}
 
 -------------------------------------------------------------------------------
 -- Continuation helpers
@@ -231,6 +256,11 @@ fillBytes ptr x sz = liftIO (Foreign.fillBytes ptr x sz)
 zeroMemory :: MonadIO m => Ptr a -> Int -> m ()
 zeroMemory ptr = fillBytes ptr 0x00
 {-# INLINEABLE zeroMemory #-}
+
+-------------------------------------------------------------------------------
+
+evalContT :: Monad m => ContT a m a -> m a
+evalContT cont = runContT cont pure
 
 -------------------------------------------------------------------------------
 

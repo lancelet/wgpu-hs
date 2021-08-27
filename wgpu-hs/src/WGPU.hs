@@ -22,12 +22,16 @@ module WGPU
     -- * Surface #surface#
     -- $surface
     Surface,
-    createGLFWSurface,
 
     -- * Adapter #adapter#
     -- $adapter
     Adapter,
+    AdapterType (..),
+    BackendType (..),
+    AdapterProperties (..),
     requestAdapter,
+    getAdapterProperties,
+    adapterPropertiesToText,
 
     -- * Device #device#
     -- $device
@@ -160,6 +164,7 @@ module WGPU
 
     -- ** Strict Maybe
     SMaybe (..),
+    fromSMaybe,
   )
 where
 
@@ -210,11 +215,11 @@ import WGPU.Internal.Texture
 --
 -- Currently, macOS (Metal), Windows and Linux are supported.
 --
--- === Dependence on GLFW-b
+-- === Windowing System Support
 --
--- This package currently uses only
--- <https://hackage.haskell.org/package/GLFW-b GLFW-b>
--- for windowing and event processing.
+-- The bindings support both GLFW-b and SDL as windowing systems on macOS,
+-- Windows and Linux. The windowing system bindings are somewhat hacky (due to
+-- the early stage of WebGPU Native), but they work.
 --
 -- === Structure of Bindings
 --
@@ -277,9 +282,8 @@ import WGPU.Internal.Texture
 -- $surface
 --
 -- A 'Surface' is a handle to a platform-specific presentable surface, like a
--- window. Currently, only GLFW windows are supported for surface creation.
--- Once you have a GLFW window, you may create a 'Surface' for it using the
--- 'createGLFWSurface' function.
+-- window. First, create either a GLFW or SDL window, and then create a surface
+-- using either 'createGLFWSurface' or 'createSDLSurface'.
 --
 -- Once you have a 'Surface', the next step is usually to
 -- <WGPU.html#g:adapter request an adapter> that is compatible with it.

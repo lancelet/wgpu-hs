@@ -8,23 +8,45 @@ on:
 
 jobs:
   cabal:
-    name: ${{ matrix.os }} / ghc ${{ matrix.ghc }}
-    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.sys.os }} / ghc ${{ matrix.ghc }}
+    runs-on: ${{ matrix.sys.os }}
     strategy:
       matrix:
-        os: [macOS-latest, ubuntu-latest, windows-latest]
+        sys:
+          - { os: macOS-latest,   shell: bash        }
+          - { os: ubuntu-latest,  shell: bash        }
+          - { os: windows-latest, shell: 'msys2 {0}' }
         cabal: ["3.2"]
         ghc:
           - "8.10.5"
 
+    defaults:
+      run:
+        shell: ${{ matrix.sys.shell }}
+
     steps:
     - uses: actions/checkout@v2
 
+    - uses: msys2/setup-msys2@v2
+      if: ${{ matrix.sys.os == 'windows-latest' }}
+      with:
+        path-type: inherit
+
+    - name: Install macOS Dependencies
+      if: ${{ matrix.sys.os == 'macOS-latest' }}
+      run: |
+        brew install sdl2
+
     - name: Install Ubuntu Dependencies
-      if: ${{ matrix.os == 'ubuntu-latest' }}
+      if: ${{ matrix.sys.os == 'ubuntu-latest' }}
       run: |
         sudo apt-get update
-        sudo apt-get install libglfw3-dev libxi-dev libxrandr-dev libxxf86vm-dev libxcursor-dev libxinerama-dev -y
+        sudo apt-get install libglfw3-dev libsdl2-dev libxi-dev libxrandr-dev libxxf86vm-dev libxcursor-dev libxinerama-dev -y
+
+    - name: Install Windows Dependencies
+      if: ${{ matrix.sys.os == 'windows-latest' }}
+      run: |
+        pacman --noconfirm -S mingw-w64-x86_64-pkg-config mingw-w64-x86_64-SDL2
 
     - uses: haskell/actions/setup@v1
       id: setup-haskell-cabal

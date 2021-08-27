@@ -21,6 +21,14 @@ of macOS Big Sur (11.5.2) on 2021-08-21.
      after being prompted to install the XCode command line tools. Instructions
      will be displayed in the terminal. You may need to use `ghcup tui` to
      select an appropriate GHC version (GHC 8.10.5).
+
+  1. Install the [Homebrew](https://brew.sh/) package manager.
+
+  1. Install SDL2 via Homebrew. In a terminal:
+
+     ```sh
+     brew install sdl2 
+     ```
      
 ### Build and Run an Example
 
@@ -82,6 +90,7 @@ of Windows 10 on 2021-08-21.
      ```powershell
      choco install git make llvm -y
      ```
+  1. (For SDL2 only.) Install SDL2 for development.
  
 ### Build and Run an Example
 
@@ -142,6 +151,7 @@ These instructions were tested manually in a fresh installation of Ubuntu Linux
        libncurses5 \
        libtinfo5 \
        libglfw3-dev \
+       libsdl2-dev \
        libxi-dev \
        libxxf86vm-dev \
        libxcursor-dev \

@@ -16,7 +16,8 @@
 This repository contains Haskell bindings for
 [wgpu-native](https://github.com/gfx-rs/wgpu-native).
 
-macOS, Windows and Linux are supported.
+macOS, Windows and Linux are supported. SDL2 and GLFW are both supported as
+windowing systems.
 
 To get started, please read the [Getting Started](GettingStarted.md)
 instructions.

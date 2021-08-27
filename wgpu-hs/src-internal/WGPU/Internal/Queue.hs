@@ -15,12 +15,11 @@ module WGPU.Internal.Queue
 where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Trans.Cont (evalContT)
 import Data.Vector (Vector)
 import WGPU.Internal.CommandBuffer (CommandBuffer)
 import WGPU.Internal.Device (Device, deviceInst, wgpuDevice)
 import WGPU.Internal.Instance (Instance, wgpuHsInstance)
-import WGPU.Internal.Memory (ToRaw, raw, rawArrayPtr, showWithPtr)
+import WGPU.Internal.Memory (ToRaw, evalContT, raw, rawArrayPtr, showWithPtr)
 import qualified WGPU.Raw.Generated.Fun as RawFun
 import WGPU.Raw.Types (WGPUQueue (WGPUQueue))
 

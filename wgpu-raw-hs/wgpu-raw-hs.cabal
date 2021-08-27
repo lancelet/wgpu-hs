@@ -1,12 +1,8 @@
 cabal-version:      3.0
 name:               wgpu-raw-hs
-version:            0.2.0.1
+version:            0.3.0.0
 synopsis:           WGPU Raw
-description:
-  A very low-level WGPU binding.
-  Currently, this package will only work properly on macOS. In the future,
-  support for Linux and Windows is planned.
-
+description:        A very low-level WGPU binding.
 bug-reports:        https://github.com/lancelet/wgpu-hs/issues
 license:            BSD-3-Clause
 license-file:       LICENSE
@@ -21,6 +17,11 @@ extra-source-files:
 
 flag glfw
   description: Enable GLFW integration
+  default:     True
+  manual:      True
+
+flag sdl2
+  description: Enable SDL2 integration
   default:     True
   manual:      True
 
@@ -152,6 +153,24 @@ library
     if os(osx)
       c-sources:  cbits/surface-macos.m
       frameworks: AppKit QuartzCore
+
+  if flag(sdl2)
+    pkgconfig-depends: sdl2 >=2.0.6
+    build-depends:     sdl2 ^>=2.5.3.0
+    exposed-modules:   WGPU.Raw.SDLSurface
+
+    if os(osx)
+      c-sources:
+        cbits/sdl-surface-macos.m
+        cbits/surface-macos.m
+
+      frameworks: AppKit QuartzCore
+
+    if os(windows)
+      c-sources: cbits/sdl-surface-windows.c
+
+    if os(linux)
+      c-sources: cbits/sdl-surface-linux-x11.c
 
   if os(osx)
     cpp-options:   -DWGPUHS_UNIX -DWGPUHS_TARGET_MACOS

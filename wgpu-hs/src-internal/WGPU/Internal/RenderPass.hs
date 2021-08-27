@@ -25,7 +25,6 @@ module WGPU.Internal.RenderPass
 where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Trans.Cont (evalContT)
 import Data.Text (Text)
 import Data.Vector (Vector)
 import Data.Word (Word32)
@@ -38,7 +37,14 @@ import WGPU.Internal.CommandEncoder
     wgpuCommandEncoder,
   )
 import WGPU.Internal.Instance (Instance, wgpuHsInstance)
-import WGPU.Internal.Memory (ToRaw, raw, rawArrayPtr, rawPtr, showWithPtr)
+import WGPU.Internal.Memory
+  ( ToRaw,
+    evalContT,
+    raw,
+    rawArrayPtr,
+    rawPtr,
+    showWithPtr,
+  )
 import WGPU.Internal.SMaybe (SMaybe (SJust, SNothing))
 import WGPU.Internal.Texture (TextureView)
 import qualified WGPU.Raw.Generated.Enum.WGPULoadOp as WGPULoadOp

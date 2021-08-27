@@ -20,7 +20,6 @@ module WGPU.Internal.Device
 where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Trans.Cont (evalContT)
 import Data.Default (Default, def)
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -31,6 +30,7 @@ import WGPU.Internal.ChainedStruct (ChainedStruct (EmptyChain, PtrChain))
 import WGPU.Internal.Instance (Instance, wgpuHsInstance)
 import WGPU.Internal.Memory
   ( ToRaw,
+    evalContT,
     freeHaskellFunPtr,
     newEmptyMVar,
     putMVar,
