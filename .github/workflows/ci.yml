@@ -13,9 +13,12 @@ jobs:
     strategy:
       matrix:
         sys:
-          - { os: macOS-latest,   shell: bash        }
-          - { os: ubuntu-latest,  shell: bash        }
-          - { os: windows-latest, shell: 'msys2 {0}' }
+          # The `sdl2` package is currently not compiling for macOS.
+          # Reason: unknown.
+          # Try again with the next GHC release.
+          - { os: macOS-latest,   shell: bash,        flags: '-sdl2 glfw'}
+          - { os: ubuntu-latest,  shell: bash,        flags: 'sdl2 glfw'}
+          - { os: windows-latest, shell: 'msys2 {0}', flags: 'sdl2 glfw'}
         cabal: ["3.2"]
         ghc:
           - "8.10.5"
@@ -57,7 +60,7 @@ jobs:
 
     - name: Configure
       run: |
-        cabal configure --enable-tests --enable-benchmarks --test-show-details=direct
+        cabal configure --enable-tests --enable-benchmarks --test-show-details=direct --flags="${{ matrix.sys.flags }}"
 
     - name: Freeze
       run: |
