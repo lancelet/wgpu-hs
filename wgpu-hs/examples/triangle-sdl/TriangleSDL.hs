@@ -28,8 +28,6 @@ import Prelude hiding (putStrLn)
 
 main :: IO ()
 main = runResourceT $ do
-  putStrLn "Start"
-
   -- Parameters for the static resource initialization
   let params =
         SimpleSDL.Params
@@ -79,33 +77,32 @@ app = do
 
 -- | The rendering action.
 render :: App ()
-render = do
-  SimpleSDL.withSwapChain $ do
-    nextTexture <- C.getSwapChainCurrentTextureView
-    renderPipeline <- SimpleSDL.getRenderPipeline "renderPipeline"
-    commandBuffer <-
-      C.buildCommandBuffer "Command Encoder" "Command Buffer" $ do
-        let renderPassDescriptor =
-              WGPU.RenderPassDescriptor
-                { renderPassLabel = "Render Pass",
-                  colorAttachments =
-                    [ WGPU.RenderPassColorAttachment
-                        { colorView = nextTexture,
-                          resolveTarget = WGPU.SNothing,
-                          operations =
-                            WGPU.Operations
-                              { load = WGPU.LoadOpClear (WGPU.Color 0 0 0 1),
-                                store = WGPU.StoreOpStore
-                              }
-                        }
-                    ],
-                  depthStencilAttachment = WGPU.SNothing
-                }
-        C.buildRenderPass renderPassDescriptor $ do
-          C.renderPassSetPipeline renderPipeline
-          C.renderPassDraw (WGPU.Range 0 3) (WGPU.Range 0 1)
-    C.queueSubmit' [commandBuffer]
-    C.swapChainPresent
+render = SimpleSDL.withSwapChain $ do
+  nextTexture <- C.getSwapChainCurrentTextureView
+  renderPipeline <- SimpleSDL.getRenderPipeline "renderPipeline"
+  commandBuffer <-
+    C.buildCommandBuffer "Command Encoder" "Command Buffer" $ do
+      let renderPassDescriptor =
+            WGPU.RenderPassDescriptor
+              { renderPassLabel = "Render Pass",
+                colorAttachments =
+                  [ WGPU.RenderPassColorAttachment
+                      { colorView = nextTexture,
+                        resolveTarget = WGPU.SNothing,
+                        operations =
+                          WGPU.Operations
+                            { load = WGPU.LoadOpClear (WGPU.Color 0 0 0 1),
+                              store = WGPU.StoreOpStore
+                            }
+                      }
+                  ],
+                depthStencilAttachment = WGPU.SNothing
+              }
+      C.buildRenderPass renderPassDescriptor $ do
+        C.renderPassSetPipeline renderPipeline
+        C.renderPassDraw (WGPU.Range 0 3) (WGPU.Range 0 1)
+  C.queueSubmit' [commandBuffer]
+  C.swapChainPresent
 
 -- | Application initialization
 initApp :: App ()

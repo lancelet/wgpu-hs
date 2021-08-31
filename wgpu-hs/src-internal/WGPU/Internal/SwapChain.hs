@@ -43,7 +43,6 @@ import WGPU.Internal.Texture (TextureFormat, TextureUsage, TextureView (TextureV
 import WGPU.Raw.Generated.Enum.WGPUPresentMode (WGPUPresentMode)
 import qualified WGPU.Raw.Generated.Enum.WGPUPresentMode as WGPUPresentMode
 import WGPU.Raw.Generated.Enum.WGPUTextureFormat (WGPUTextureFormat (WGPUTextureFormat))
-import WGPU.Raw.Generated.Enum.WGPUTextureUsage (WGPUTextureUsage (WGPUTextureUsage))
 import qualified WGPU.Raw.Generated.Fun as RawFun
 import WGPU.Raw.Generated.Struct.WGPUSwapChainDescriptor (WGPUSwapChainDescriptor)
 import qualified WGPU.Raw.Generated.Struct.WGPUSwapChainDescriptor as WGPUSwapChainDescriptor
@@ -85,9 +84,9 @@ data SwapChainDescriptor = SwapChainDescriptor
     -- 'getSwapChainPreferredFormat' function.
     swapChainFormat :: !TextureFormat,
     -- | Width of the swap chain. Must be the same size as the surface.
-    width :: !Word32,
+    swapChainWidth :: !Word32,
     -- | Height of the swap chain. Must be the same size as the surface.
-    height :: !Word32,
+    swapChainHeight :: !Word32,
     -- | Presentation mode of the swap chain.
     presentMode :: !PresentMode
   }
@@ -96,7 +95,7 @@ data SwapChainDescriptor = SwapChainDescriptor
 instance ToRaw SwapChainDescriptor WGPUSwapChainDescriptor where
   raw SwapChainDescriptor {..} = do
     label_ptr <- rawPtr swapChainLabel
-    WGPUTextureUsage n_usage <- raw usage
+    n_usage <- raw usage
     n_format <- raw swapChainFormat
     n_presentMode <- raw presentMode
     pure
@@ -105,8 +104,8 @@ instance ToRaw SwapChainDescriptor WGPUSwapChainDescriptor where
           label = label_ptr,
           usage = n_usage,
           format = n_format,
-          width = width,
-          height = height,
+          width = swapChainWidth,
+          height = swapChainHeight,
           presentMode = n_presentMode
         }
 

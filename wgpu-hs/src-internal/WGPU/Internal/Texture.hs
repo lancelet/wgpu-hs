@@ -1,4 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# OPTIONS_GHC -Wno-missing-fields #-}
 
 -- |
 -- Module      : WGPU.Internal.Texture
@@ -9,20 +12,49 @@ module WGPU.Internal.Texture
     TextureFormat (..),
     TextureUsage (..),
     TextureViewDimension (..),
+    TextureDimension (..),
+    TextureDescriptor (..),
+    TextureViewDescriptor (..),
 
     -- * Functions
+    createTexture,
+    createView,
     textureFormatFromRaw,
   )
 where
 
-import WGPU.Internal.Memory (ToRaw, raw, showWithPtr)
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.Bits ((.|.))
+import Data.Default (Default, def)
+import Data.Text (Text)
+import Data.Word (Word32)
+import Foreign (nullPtr)
+import WGPU.Internal.Device (Device, deviceInst, wgpuDevice)
+import WGPU.Internal.Instance (wgpuHsInstance)
+import WGPU.Internal.Memory (ToRaw, evalContT, raw, rawPtr, showWithPtr)
+import WGPU.Internal.Multipurpose
+  ( Extent3D,
+    Texture (Texture),
+    TextureAspect,
+    textureInst,
+    wgpuTexture,
+  )
+import WGPU.Raw.Generated.Enum.WGPUTextureDimension (WGPUTextureDimension)
+import qualified WGPU.Raw.Generated.Enum.WGPUTextureDimension as WGPUTextureDimension
 import WGPU.Raw.Generated.Enum.WGPUTextureFormat (WGPUTextureFormat)
 import qualified WGPU.Raw.Generated.Enum.WGPUTextureFormat as WGPUTextureFormat
-import WGPU.Raw.Generated.Enum.WGPUTextureUsage (WGPUTextureUsage)
 import qualified WGPU.Raw.Generated.Enum.WGPUTextureUsage as WGPUTextureUsage
 import WGPU.Raw.Generated.Enum.WGPUTextureViewDimension (WGPUTextureViewDimension)
 import qualified WGPU.Raw.Generated.Enum.WGPUTextureViewDimension as WGPUTextureViewDimension
-import WGPU.Raw.Types (WGPUTextureView (WGPUTextureView))
+import qualified WGPU.Raw.Generated.Fun as RawFun
+import WGPU.Raw.Generated.Struct.WGPUTextureDescriptor (WGPUTextureDescriptor)
+import qualified WGPU.Raw.Generated.Struct.WGPUTextureDescriptor as WGPUTextureDescriptor
+import WGPU.Raw.Generated.Struct.WGPUTextureViewDescriptor (WGPUTextureViewDescriptor)
+import qualified WGPU.Raw.Generated.Struct.WGPUTextureViewDescriptor as WGPUTextureViewDescriptor
+import WGPU.Raw.Types
+  ( WGPUTextureUsageFlags,
+    WGPUTextureView (WGPUTextureView),
+  )
 
 -------------------------------------------------------------------------------
 
@@ -75,23 +107,33 @@ instance ToRaw TextureViewDimension WGPUTextureViewDimension where
 --
 -- The usages determine from what kind of memory the texture is allocated, and
 -- in what actions the texture can partake.
-data TextureUsage
-  = TextureUsageCopySrc
-  | TextureUsageCopyDst
-  | TextureUsageSampled
-  | TextureUsageStorage
-  | TextureUsageRenderAttachment
+data TextureUsage = TextureUsage
+  { texCopySrc :: !Bool,
+    texCopyDst :: !Bool,
+    texSampled :: !Bool,
+    texStorage :: !Bool,
+    texRenderAttachment :: !Bool
+  }
   deriving (Eq, Show)
 
-instance ToRaw TextureUsage WGPUTextureUsage where
-  raw tu =
+instance ToRaw TextureUsage WGPUTextureUsageFlags where
+  raw TextureUsage {..} =
     pure $
-      case tu of
-        TextureUsageCopySrc -> WGPUTextureUsage.CopySrc
-        TextureUsageCopyDst -> WGPUTextureUsage.CopyDst
-        TextureUsageSampled -> WGPUTextureUsage.Sampled
-        TextureUsageStorage -> WGPUTextureUsage.Storage
-        TextureUsageRenderAttachment -> WGPUTextureUsage.RenderAttachment
+      (if texCopySrc then WGPUTextureUsage.CopySrc else 0)
+        .|. (if texCopyDst then WGPUTextureUsage.CopyDst else 0)
+        .|. (if texSampled then WGPUTextureUsage.Sampled else 0)
+        .|. (if texStorage then WGPUTextureUsage.Storage else 0)
+        .|. (if texRenderAttachment then WGPUTextureUsage.RenderAttachment else 0)
+
+instance Default TextureUsage where
+  def =
+    TextureUsage
+      { texCopySrc = False,
+        texCopyDst = False,
+        texSampled = False,
+        texStorage = False,
+        texRenderAttachment = False
+      }
 
 -------------------------------------------------------------------------------
 
@@ -271,3 +313,124 @@ textureFormatFromRaw rt =
     WGPUTextureFormat.BC7RGBAUnorm -> TextureFormatBC7RGBAUnorm
     WGPUTextureFormat.BC7RGBAUnormSrgb -> TextureFormatBC7RGBAUnormSrgb
     _ -> error $ "Unexpected WGPUTextureFormat" <> show rt
+
+-------------------------------------------------------------------------------
+
+-- | Dimensionality of a texture.
+data TextureDimension
+  = TextureDimension1D
+  | TextureDimension2D
+  | TextureDimension3D
+  deriving (Eq, Show)
+
+instance ToRaw TextureDimension WGPUTextureDimension where
+  raw td = pure $
+    case td of
+      TextureDimension1D -> WGPUTextureDimension.D1D
+      TextureDimension2D -> WGPUTextureDimension.D2D
+      TextureDimension3D -> WGPUTextureDimension.D3D
+
+-------------------------------------------------------------------------------
+
+-- | Describes a 'Texture'.
+data TextureDescriptor = TextureDescriptor
+  { textureLabel :: !Text,
+    textureSize :: !Extent3D,
+    mipLevelCount :: !Word32,
+    sampleCount :: !Word32,
+    dimension :: !TextureDimension,
+    format :: !TextureFormat,
+    textureUsage :: !TextureUsage
+  }
+  deriving (Eq, Show)
+
+instance ToRaw TextureDescriptor WGPUTextureDescriptor where
+  raw TextureDescriptor {..} = do
+    label_ptr <- rawPtr textureLabel
+    n_usage <- raw textureUsage
+    n_dimension <- raw dimension
+    n_size <- raw textureSize
+    n_format <- raw format
+    pure $
+      WGPUTextureDescriptor.WGPUTextureDescriptor
+        { nextInChain = nullPtr,
+          label = label_ptr,
+          usage = n_usage,
+          dimension = n_dimension,
+          size = n_size,
+          format = n_format,
+          mipLevelCount = mipLevelCount,
+          sampleCount = sampleCount
+        }
+
+-------------------------------------------------------------------------------
+
+-- | Describes a 'TextureView'.
+data TextureViewDescriptor = TextureViewDescriptor
+  { textureViewLabel :: !Text,
+    textureViewFormat :: !TextureFormat,
+    textureViewDimension :: !TextureViewDimension,
+    textureViewBaseMipLevel :: !Word32,
+    textureViewMipLevelCount :: !Word32,
+    baseArrayLayer :: !Word32,
+    arrayLayerCount :: !Word32,
+    textureViewAspect :: !TextureAspect
+  }
+  deriving (Eq, Show)
+
+instance ToRaw TextureViewDescriptor WGPUTextureViewDescriptor where
+  raw TextureViewDescriptor {..} = do
+    label_ptr <- rawPtr textureViewLabel
+    n_format <- raw textureViewFormat
+    n_dimension <- raw textureViewDimension
+    n_aspect <- raw textureViewAspect
+    pure $
+      WGPUTextureViewDescriptor.WGPUTextureViewDescriptor
+        { nextInChain = nullPtr,
+          label = label_ptr,
+          format = n_format,
+          dimension = n_dimension,
+          baseMipLevel = textureViewBaseMipLevel,
+          mipLevelCount = textureViewMipLevelCount,
+          baseArrayLayer = baseArrayLayer,
+          arrayLayerCount = arrayLayerCount,
+          aspect = n_aspect
+        }
+
+-------------------------------------------------------------------------------
+
+-- | Create a texture.
+createTexture ::
+  MonadIO m =>
+  -- | Device for which to create the texture.
+  Device ->
+  -- | Description of the texture to create.
+  TextureDescriptor ->
+  -- | Action to create the texture.
+  m Texture
+createTexture device textureDescriptor = liftIO . evalContT $ do
+  let inst = deviceInst device
+  textureDescriptor_ptr <- rawPtr textureDescriptor
+  Texture inst
+    <$> RawFun.wgpuDeviceCreateTexture
+      (wgpuHsInstance inst)
+      (wgpuDevice device)
+      textureDescriptor_ptr
+
+-- | Create a view of a texture.
+createView ::
+  MonadIO m =>
+  -- | Texture for which the view should be created.
+  Texture ->
+  -- | Description of the texture view.
+  TextureViewDescriptor ->
+  -- | Created texture view.
+  m TextureView
+createView texture textureViewDescriptor = liftIO . evalContT $ do
+  let inst = textureInst texture
+  textureViewDescriptor_ptr <- rawPtr textureViewDescriptor
+  TextureView
+    <$> RawFun.wgpuTextureCreateView
+      (wgpuHsInstance inst)
+      (wgpuTexture texture)
+      textureViewDescriptor_ptr

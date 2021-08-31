@@ -175,10 +175,10 @@ updateSwapChain device surface window textureFormat swapChainMVar = do
           surface
           WGPU.SwapChainDescriptor
             { swapChainLabel = "SwapChain",
-              usage = WGPU.TextureUsageRenderAttachment,
+              usage = def {WGPU.texRenderAttachment = True},
               swapChainFormat = textureFormat,
-              width = fromIntegral . fst $ curSz,
-              height = fromIntegral . snd $ curSz,
+              swapChainWidth = fromIntegral . fst $ curSz,
+              swapChainHeight = fromIntegral . snd $ curSz,
               presentMode = WGPU.PresentModeFifo
             }
       _ <- tryTakeMVar swapChainMVar

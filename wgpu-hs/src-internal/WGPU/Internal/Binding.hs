@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeSynonymInstances #-}
@@ -7,6 +8,9 @@
 -- Description : Resource Binding
 module WGPU.Internal.Binding
   ( -- * Types
+    BindGroup (..),
+    BindGroupDescriptor (..),
+    BindGroupEntry (..),
     BindGroupLayout (..),
     BindGroupLayoutDescriptor (..),
     BindGroupLayoutEntry (..),
@@ -20,19 +24,25 @@ module WGPU.Internal.Binding
     StorageTextureAccess (..),
     TextureSampleType (..),
     BufferBindingType (..),
+    BindingResource (..),
+    BufferBinding (..),
 
     -- * Functions
+    createBindGroup,
     createBindGroupLayout,
   )
 where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Bits ((.|.))
+import Data.Default (Default, def)
 import Data.Text (Text)
 import Data.Vector (Vector)
+import qualified Data.Vector as Vector
 import Data.Word (Word32, Word64)
 import Foreign (nullPtr)
 import Foreign.C (CBool (CBool))
+import WGPU.Internal.Buffer (Buffer, wgpuBuffer)
 import WGPU.Internal.Device (Device, deviceInst, wgpuDevice)
 import WGPU.Internal.Instance (wgpuHsInstance)
 import WGPU.Internal.Memory
@@ -44,7 +54,8 @@ import WGPU.Internal.Memory
     showWithPtr,
   )
 import WGPU.Internal.SMaybe (SMaybe, fromSMaybe)
-import WGPU.Internal.Texture (TextureFormat, TextureViewDimension)
+import WGPU.Internal.Sampler (Sampler, wgpuSampler)
+import WGPU.Internal.Texture (TextureFormat, TextureView, TextureViewDimension, wgpuTextureView)
 import WGPU.Raw.Generated.Enum.WGPUBufferBindingType (WGPUBufferBindingType)
 import qualified WGPU.Raw.Generated.Enum.WGPUBufferBindingType as WGPUBufferBindingType
 import qualified WGPU.Raw.Generated.Enum.WGPUSamplerBindingType as WGPUSamplerBindingType
@@ -56,6 +67,10 @@ import WGPU.Raw.Generated.Enum.WGPUTextureSampleType (WGPUTextureSampleType)
 import qualified WGPU.Raw.Generated.Enum.WGPUTextureSampleType as WGPUTextureSampleType
 import qualified WGPU.Raw.Generated.Enum.WGPUTextureViewDimension as WGPUTextureViewDimension
 import qualified WGPU.Raw.Generated.Fun as RawFun
+import WGPU.Raw.Generated.Struct.WGPUBindGroupDescriptor (WGPUBindGroupDescriptor)
+import qualified WGPU.Raw.Generated.Struct.WGPUBindGroupDescriptor as WGPUBindGroupDescriptor
+import WGPU.Raw.Generated.Struct.WGPUBindGroupEntry (WGPUBindGroupEntry)
+import qualified WGPU.Raw.Generated.Struct.WGPUBindGroupEntry as WGPUBindGroupEntry
 import WGPU.Raw.Generated.Struct.WGPUBindGroupLayoutDescriptor (WGPUBindGroupLayoutDescriptor)
 import qualified WGPU.Raw.Generated.Struct.WGPUBindGroupLayoutDescriptor as WGPUBindGroupLayoutDescriptor
 import WGPU.Raw.Generated.Struct.WGPUBindGroupLayoutEntry (WGPUBindGroupLayoutEntry)
@@ -69,9 +84,35 @@ import qualified WGPU.Raw.Generated.Struct.WGPUStorageTextureBindingLayout as WG
 import WGPU.Raw.Generated.Struct.WGPUTextureBindingLayout (WGPUTextureBindingLayout)
 import qualified WGPU.Raw.Generated.Struct.WGPUTextureBindingLayout as WGPUTextureBindingLayout
 import WGPU.Raw.Types
-  ( WGPUBindGroupLayout (WGPUBindGroupLayout),
+  ( WGPUBindGroup (WGPUBindGroup),
+    WGPUBindGroupLayout (WGPUBindGroupLayout),
+    WGPUBuffer (WGPUBuffer),
+    WGPUSampler (WGPUSampler),
     WGPUShaderStageFlags,
+    WGPUTextureView (WGPUTextureView),
   )
+
+-------------------------------------------------------------------------------
+
+-- | Binding group.
+--
+-- Represents the set of resources bound to the bindings described by a
+-- 'BindGroupLayout'.
+newtype BindGroup = BindGroup {wgpuBindGroup :: WGPUBindGroup}
+
+instance Show BindGroup where
+  show b =
+    let BindGroup (WGPUBindGroup ptr) = b
+     in showWithPtr "BindGroup" ptr
+
+instance Eq BindGroup where
+  (==) b1 b2 =
+    let BindGroup (WGPUBindGroup b1_ptr) = b1
+        BindGroup (WGPUBindGroup b2_ptr) = b2
+     in b1_ptr == b2_ptr
+
+instance ToRaw BindGroup WGPUBindGroup where
+  raw = pure . wgpuBindGroup
 
 -------------------------------------------------------------------------------
 
@@ -96,42 +137,112 @@ instance ToRaw BindGroupLayout WGPUBindGroupLayout where
 
 -------------------------------------------------------------------------------
 
--- | Creates a 'BindGroupLayout'.
-createBindGroupLayout ::
-  MonadIO m =>
-  -- | The device for which the bind group layout will be created.
-  Device ->
-  -- | Description of the bind group layout.
-  BindGroupLayoutDescriptor ->
-  -- | MonadIO action that creates a bind group layout.
-  m BindGroupLayout
-createBindGroupLayout device ld = liftIO . evalContT $ do
-  let inst = deviceInst device
+-- | Describes a 'BindGroup'.
+data BindGroupDescriptor = BindGroupDescriptor
+  { bindGroupLabel :: !Text,
+    bindGroupLayout :: !BindGroupLayout,
+    bindGroupEntries :: !(Vector BindGroupEntry)
+  }
+  deriving (Eq, Show)
 
-  bindGroupLayoutDescriptor_ptr <- rawPtr ld
-  rawBindGroupLayout <-
-    RawFun.wgpuDeviceCreateBindGroupLayout
-      (wgpuHsInstance inst)
-      (wgpuDevice device)
-      bindGroupLayoutDescriptor_ptr
-  pure (BindGroupLayout rawBindGroupLayout)
+instance ToRaw BindGroupDescriptor WGPUBindGroupDescriptor where
+  raw BindGroupDescriptor {..} = do
+    label_ptr <- rawPtr bindGroupLabel
+    n_layout <- raw bindGroupLayout
+    let n_entryCount = fromIntegral . Vector.length $ bindGroupEntries
+    entries_ptr <- rawArrayPtr bindGroupEntries
+    pure
+      WGPUBindGroupDescriptor.WGPUBindGroupDescriptor
+        { nextInChain = nullPtr,
+          label = label_ptr,
+          layout = n_layout,
+          entryCount = n_entryCount,
+          entries = entries_ptr
+        }
+
+-------------------------------------------------------------------------------
+
+-- | Entry in a bind group.
+data BindGroupEntry = BindGroupEntry
+  { binding :: !Binding,
+    resource :: !BindingResource
+  }
+  deriving (Eq, Show)
+
+instance ToRaw BindGroupEntry WGPUBindGroupEntry where
+  raw BindGroupEntry {..} = pure $
+    case resource of
+      BindingResourceBuffer bufferBinding ->
+        bufferBindingToRaw binding bufferBinding
+      BindingResourceSampler sampler ->
+        samplerBindingToRaw binding sampler
+      BindingResourceTextureView textureView ->
+        textureViewBindingToRaw binding textureView
+    where
+      bufferBindingToRaw :: Binding -> BufferBinding -> WGPUBindGroupEntry
+      bufferBindingToRaw bnding BufferBinding {..} =
+        WGPUBindGroupEntry.WGPUBindGroupEntry
+          { binding = unBinding bnding,
+            buffer = wgpuBuffer bindingBuffer,
+            offset = bindingBufferOffset,
+            size = bindingBufferSize,
+            sampler = WGPUSampler nullPtr,
+            textureView = WGPUTextureView nullPtr
+          }
+
+      samplerBindingToRaw :: Binding -> Sampler -> WGPUBindGroupEntry
+      samplerBindingToRaw bnding sampler =
+        WGPUBindGroupEntry.WGPUBindGroupEntry
+          { binding = unBinding bnding,
+            buffer = WGPUBuffer nullPtr,
+            offset = 0,
+            size = 0,
+            sampler = wgpuSampler sampler,
+            textureView = WGPUTextureView nullPtr
+          }
+
+      textureViewBindingToRaw :: Binding -> TextureView -> WGPUBindGroupEntry
+      textureViewBindingToRaw bnding textureView =
+        WGPUBindGroupEntry.WGPUBindGroupEntry
+          { binding = unBinding bnding,
+            buffer = WGPUBuffer nullPtr,
+            offset = 0,
+            size = 0,
+            sampler = WGPUSampler nullPtr,
+            textureView = wgpuTextureView textureView
+          }
+
+-- | Resource that can be bound to a pipeline.
+data BindingResource
+  = BindingResourceBuffer !BufferBinding
+  | BindingResourceSampler !Sampler
+  | BindingResourceTextureView !TextureView
+  deriving (Eq, Show)
+
+-- | A buffer binding.
+data BufferBinding = BufferBinding
+  { bindingBuffer :: !Buffer,
+    bindingBufferOffset :: !Word64,
+    bindingBufferSize :: !Word64
+  }
+  deriving (Eq, Show)
 
 -------------------------------------------------------------------------------
 
 -- | Describes a 'BindGroupLayout'.
 data BindGroupLayoutDescriptor = BindGroupLayoutDescriptor
   { -- | Debug label of the bind group layout.
-    bindGroupLabel :: !Text,
+    bindGroupLayoutLabel :: !Text,
     -- | Sequence of entries in this bind group layout.
-    entries :: !(Vector BindGroupLayoutEntry)
+    layoutEntries :: !(Vector BindGroupLayoutEntry)
   }
   deriving (Eq, Show)
 
 instance ToRaw BindGroupLayoutDescriptor WGPUBindGroupLayoutDescriptor where
   raw BindGroupLayoutDescriptor {..} = do
-    label_ptr <- rawPtr bindGroupLabel
-    let n_entryCount = fromIntegral . length $ entries
-    entries_ptr <- rawArrayPtr entries
+    label_ptr <- rawPtr bindGroupLayoutLabel
+    let n_entryCount = fromIntegral . length $ layoutEntries
+    entries_ptr <- rawArrayPtr layoutEntries
     pure
       WGPUBindGroupLayoutDescriptor.WGPUBindGroupLayoutDescriptor
         { nextInChain = nullPtr,
@@ -146,7 +257,7 @@ instance ToRaw BindGroupLayoutDescriptor WGPUBindGroupLayoutDescriptor where
 data BindGroupLayoutEntry = BindGroupLayoutEntry
   { -- | Binding index. Must match a shader index, and be unique inside a
     --   bind group layout.
-    binding :: !Binding,
+    layoutBinding :: !Binding,
     -- | Which shader stages can see this binding.
     visibility :: !ShaderStage,
     -- | Type of the binding.
@@ -156,7 +267,7 @@ data BindGroupLayoutEntry = BindGroupLayoutEntry
 
 instance ToRaw BindGroupLayoutEntry WGPUBindGroupLayoutEntry where
   raw BindGroupLayoutEntry {..} = do
-    n_binding <- raw binding
+    n_binding <- raw layoutBinding
     n_visibility <- raw visibility
     (n_buffer, n_sampler, n_texture, n_storageTexture) <-
       case bindGroupLayoutEntryType of
@@ -223,7 +334,7 @@ instance ToRaw BindGroupLayoutEntry WGPUBindGroupLayoutEntry where
 --
 -- This must match a shader index, and be unique inside a binding group
 -- layout.
-newtype Binding = Binding {unBinding :: Word32} deriving (Eq, Show)
+newtype Binding = Binding {unBinding :: Word32} deriving (Eq, Num, Show)
 
 instance ToRaw Binding Word32 where
   raw = pure . unBinding
@@ -247,6 +358,14 @@ instance ToRaw ShaderStage WGPUShaderStageFlags where
       (if stageVertex then WGPUShaderStage.Vertex else 0)
         .|. (if stageFragment then WGPUShaderStage.Fragment else 0)
         .|. (if stageCompute then WGPUShaderStage.Compute else 0)
+
+instance Default ShaderStage where
+  def =
+    ShaderStage
+      { stageVertex = False,
+        stageFragment = False,
+        stageCompute = False
+      }
 
 -------------------------------------------------------------------------------
 
@@ -320,7 +439,7 @@ data TextureBindingLayout = TextureBindingLayout
   { -- | Sample type of the texture binding.
     sampleType :: !TextureSampleType,
     -- | Dimension of the texture view that is going to be sampled.
-    textureViewDimension :: !TextureViewDimension,
+    textureBindingViewDimension :: !TextureViewDimension,
     -- | True if the texture has a sample count greater than 1.
     multiSampled :: !Bool
   }
@@ -329,7 +448,7 @@ data TextureBindingLayout = TextureBindingLayout
 instance ToRaw TextureBindingLayout WGPUTextureBindingLayout where
   raw TextureBindingLayout {..} = do
     n_sampleType <- raw sampleType
-    n_viewDimension <- raw textureViewDimension
+    n_viewDimension <- raw textureBindingViewDimension
     n_multisampled <- raw multiSampled
     pure
       WGPUTextureBindingLayout.WGPUTextureBindingLayout
@@ -417,3 +536,42 @@ instance ToRaw BufferBindingType WGPUBufferBindingType where
         Uniform -> WGPUBufferBindingType.Uniform
         Storage False -> WGPUBufferBindingType.Storage
         Storage True -> WGPUBufferBindingType.ReadOnlyStorage
+
+-------------------------------------------------------------------------------
+
+-- | Create a bind group.
+createBindGroup ::
+  MonadIO m =>
+  -- | Device for which to create the bind group.
+  Device ->
+  -- | Description of the bind group.
+  BindGroupDescriptor ->
+  -- | Action to create the bind group.
+  m BindGroup
+createBindGroup device bindGroupDescriptor = liftIO . evalContT $ do
+  let inst = deviceInst device
+  bindGroupDescriptor_ptr <- rawPtr bindGroupDescriptor
+  BindGroup
+    <$> RawFun.wgpuDeviceCreateBindGroup
+      (wgpuHsInstance inst)
+      (wgpuDevice device)
+      bindGroupDescriptor_ptr
+
+-- | Creates a 'BindGroupLayout'.
+createBindGroupLayout ::
+  MonadIO m =>
+  -- | The device for which the bind group layout will be created.
+  Device ->
+  -- | Description of the bind group layout.
+  BindGroupLayoutDescriptor ->
+  -- | MonadIO action that creates a bind group layout.
+  m BindGroupLayout
+createBindGroupLayout device ld = liftIO . evalContT $ do
+  let inst = deviceInst device
+  bindGroupLayoutDescriptor_ptr <- rawPtr ld
+  rawBindGroupLayout <-
+    RawFun.wgpuDeviceCreateBindGroupLayout
+      (wgpuHsInstance inst)
+      (wgpuDevice device)
+      bindGroupLayoutDescriptor_ptr
+  pure (BindGroupLayout rawBindGroupLayout)

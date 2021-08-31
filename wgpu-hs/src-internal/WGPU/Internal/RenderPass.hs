@@ -19,17 +19,25 @@ module WGPU.Internal.RenderPass
     -- * Functions
     beginRenderPass,
     renderPassSetPipeline,
+    renderPassSetBindGroup,
+    renderPassSetIndexBuffer,
+    renderPassSetVertexBuffer,
     renderPassDraw,
+    renderPassDrawIndexed,
     endRenderPass,
   )
 where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.Int (Int32)
 import Data.Text (Text)
 import Data.Vector (Vector)
-import Data.Word (Word32)
+import qualified Data.Vector as Vector
+import Data.Word (Word32, Word64)
 import Foreign (nullPtr)
 import Foreign.C (CBool (CBool), CFloat (CFloat))
+import WGPU.Internal.Binding (BindGroup, wgpuBindGroup)
+import WGPU.Internal.Buffer (Buffer, wgpuBuffer)
 import WGPU.Internal.Color (Color, transparentBlack)
 import WGPU.Internal.CommandEncoder
   ( CommandEncoder,
@@ -45,6 +53,7 @@ import WGPU.Internal.Memory
     rawPtr,
     showWithPtr,
   )
+import WGPU.Internal.Multipurpose (IndexFormat)
 import WGPU.Internal.SMaybe (SMaybe (SJust, SNothing))
 import WGPU.Internal.Texture (TextureView)
 import qualified WGPU.Raw.Generated.Enum.WGPULoadOp as WGPULoadOp
@@ -344,6 +353,85 @@ renderPassDraw renderPassEncoder vertices instances = do
     (rangeLength (vertices :: Range Word32))
     (rangeLength (instances :: Range Word32))
     (rangeStart vertices)
+    (rangeStart instances)
+
+-- | Sets the active bind group for a given bind group index.
+renderPassSetBindGroup ::
+  MonadIO m =>
+  RenderPassEncoder ->
+  Word32 ->
+  BindGroup ->
+  Vector Word32 ->
+  m ()
+renderPassSetBindGroup renderPassEncoder index bindGroup offsets =
+  liftIO . evalContT $ do
+    let inst = renderPassEncoderInst renderPassEncoder
+    let offsetsLength = fromIntegral . Vector.length $ offsets
+    offsets_ptr <- rawArrayPtr offsets
+    RawFun.wgpuRenderPassEncoderSetBindGroup
+      (wgpuHsInstance inst)
+      (wgpuRenderPassEncoder renderPassEncoder)
+      index
+      (wgpuBindGroup bindGroup)
+      offsetsLength
+      offsets_ptr
+
+-- | Sets the active index buffer.
+renderPassSetIndexBuffer ::
+  MonadIO m =>
+  RenderPassEncoder ->
+  Buffer ->
+  IndexFormat ->
+  Word64 ->
+  Word64 ->
+  m ()
+renderPassSetIndexBuffer renderPassEncoder buffer indexFormat offset size =
+  liftIO . evalContT $ do
+    let inst = renderPassEncoderInst renderPassEncoder
+    n_indexFormat <- raw indexFormat
+    RawFun.wgpuRenderPassEncoderSetIndexBuffer
+      (wgpuHsInstance inst)
+      (wgpuRenderPassEncoder renderPassEncoder)
+      (wgpuBuffer buffer)
+      n_indexFormat
+      offset
+      size
+
+-- | Assign a vertex buffer to a slot.
+renderPassSetVertexBuffer ::
+  MonadIO m =>
+  RenderPassEncoder ->
+  Word32 ->
+  Buffer ->
+  Word64 ->
+  Word64 ->
+  m ()
+renderPassSetVertexBuffer renderPassEncoder slot buffer offset size = do
+  let inst = renderPassEncoderInst renderPassEncoder
+  RawFun.wgpuRenderPassEncoderSetVertexBuffer
+    (wgpuHsInstance inst)
+    (wgpuRenderPassEncoder renderPassEncoder)
+    slot
+    (wgpuBuffer buffer)
+    offset
+    size
+
+renderPassDrawIndexed ::
+  MonadIO m =>
+  RenderPassEncoder ->
+  Range Word32 ->
+  Int32 ->
+  Range Word32 ->
+  m ()
+renderPassDrawIndexed renderPassEncoder indices baseVertex instances = do
+  let inst = renderPassEncoderInst renderPassEncoder
+  RawFun.wgpuRenderPassEncoderDrawIndexed
+    (wgpuHsInstance inst)
+    (wgpuRenderPassEncoder renderPassEncoder)
+    (rangeLength indices)
+    (rangeLength instances)
+    (rangeStart indices)
+    baseVertex
     (rangeStart instances)
 
 -- | Finish recording of a render pass.

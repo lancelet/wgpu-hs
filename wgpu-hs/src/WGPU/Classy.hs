@@ -34,13 +34,25 @@ module WGPU.Classy
     -- ** Device
     requestDevice,
 
+    -- ** Buffer
+    createBuffer,
+    createBufferInit,
+
+    -- ** Texture
+    createTexture,
+    createView,
+
     -- ** Swapchain
     getSwapChainPreferredFormat,
     createSwapChain,
     getSwapChainCurrentTextureView,
     swapChainPresent,
 
+    -- ** Samplers
+    createSampler,
+
     -- ** Resource Binding
+    createBindGroup,
     createBindGroupLayout,
 
     -- ** Shader Modules
@@ -60,12 +72,18 @@ module WGPU.Classy
     beginRenderPass,
     renderPassSetPipeline,
     renderPassDraw,
+    renderPassSetBindGroup,
+    renderPassSetIndexBuffer,
+    renderPassSetVertexBuffer,
+    renderPassDrawIndexed,
     endRenderPass,
 
     -- ** Queue
     getQueue,
     queueSubmit,
     queueSubmit',
+    queueWriteTexture,
+    queueWriteBuffer,
 
     -- ** Version
     getVersion,
@@ -89,36 +107,52 @@ where
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (MonadReader, ReaderT, ask, asks, runReaderT)
 import Data.Has (Has, getter)
+import Data.Int (Int32)
 import Data.Text (Text)
 import Data.Vector (Vector)
-import Data.Word (Word32)
+import Data.Word (Word32, Word64)
 import WGPU
   ( Adapter,
     AdapterProperties,
+    BindGroup,
+    BindGroupDescriptor,
     BindGroupLayout,
     BindGroupLayoutDescriptor,
+    Buffer,
+    BufferDescriptor,
+    BufferUsage,
     CommandBuffer,
     CommandEncoder,
     Device,
     DeviceDescriptor,
+    Extent3D,
+    ImageCopyTexture,
+    IndexFormat,
     Instance,
     LogLevel,
     PipelineLayout,
     PipelineLayoutDescriptor,
     Queue,
     Range,
+    ReadableMemoryBuffer,
     RenderPassDescriptor,
     RenderPassEncoder,
     RenderPipeline,
     RenderPipelineDescriptor,
     SPIRV,
+    Sampler,
+    SamplerDescriptor,
     ShaderModule,
     ShaderModuleDescriptor,
     Surface,
     SwapChain,
     SwapChainDescriptor,
+    Texture,
+    TextureDataLayout,
+    TextureDescriptor,
     TextureFormat,
     TextureView,
+    TextureViewDescriptor,
     Version,
     WGSL,
   )
@@ -136,6 +170,8 @@ type HasSurface r m = (RIO r m, Has Surface r)
 type HasAdapter r m = (RIO r m, Has Adapter r)
 
 type HasDevice r m = (RIO r m, Has Device r)
+
+type HasTexture r m = (RIO r m, Has Texture r)
 
 type HasSwapChain r m = (RIO r m, Has SwapChain r)
 
@@ -157,6 +193,27 @@ access3 :: (Has q r, MonadReader r m) => (q -> b -> c -> m a) -> b -> c -> m a
 access3 action y z = asks getter >>= \x -> action x y z
 {-# INLINEABLE access3 #-}
 
+access4 ::
+  (Has q r, MonadReader r m) =>
+  (q -> b -> c -> d -> m a) ->
+  b ->
+  c ->
+  d ->
+  m a
+access4 action x y z = asks getter >>= \w -> action w x y z
+{-# INLINEABLE access4 #-}
+
+access5 ::
+  (Has q r, MonadReader r m) =>
+  (q -> b -> c -> d -> e -> m a) ->
+  b ->
+  c ->
+  d ->
+  e ->
+  m a
+access5 action w x y z = asks getter >>= \v -> action v w x y z
+{-# INLINEABLE access5 #-}
+
 -------------------------------------------------------------------------------
 -- Adapter
 
@@ -174,6 +231,33 @@ getAdapterProperties = access WGPU.getAdapterProperties
 requestDevice :: HasAdapter r m => DeviceDescriptor -> m (Maybe Device)
 requestDevice = access2 WGPU.requestDevice
 {-# INLINEABLE requestDevice #-}
+
+-------------------------------------------------------------------------------
+-- Buffer
+
+createBuffer :: HasDevice r m => BufferDescriptor -> m Buffer
+createBuffer = access2 WGPU.createBuffer
+{-# INLINEABLE createBuffer #-}
+
+createBufferInit ::
+  (HasDevice r m, ReadableMemoryBuffer a) =>
+  Text ->
+  BufferUsage ->
+  a ->
+  m Buffer
+createBufferInit = access4 WGPU.createBufferInit
+{-# INLINEABLE createBufferInit #-}
+
+-------------------------------------------------------------------------------
+-- Texture
+
+createTexture :: HasDevice r m => TextureDescriptor -> m Texture
+createTexture = access2 WGPU.createTexture
+{-# INLINEABLE createTexture #-}
+
+createView :: HasTexture r m => TextureViewDescriptor -> m TextureView
+createView = access2 WGPU.createView
+{-# INLINEABLE createView #-}
 
 -------------------------------------------------------------------------------
 -- Swapchain
@@ -201,7 +285,18 @@ swapChainPresent = access WGPU.swapChainPresent
 {-# INLINEABLE swapChainPresent #-}
 
 -------------------------------------------------------------------------------
+-- Samplers
+
+createSampler :: (HasDevice r m) => SamplerDescriptor -> m Sampler
+createSampler = access2 WGPU.createSampler
+{-# INLINEABLE createSampler #-}
+
+-------------------------------------------------------------------------------
 -- Resource Binding
+
+createBindGroup :: HasDevice r m => BindGroupDescriptor -> m BindGroup
+createBindGroup = access2 WGPU.createBindGroup
+{-# INLINEABLE createBindGroup #-}
 
 createBindGroupLayout ::
   HasDevice r m =>
@@ -272,6 +367,44 @@ renderPassDraw ::
 renderPassDraw = access3 WGPU.renderPassDraw
 {-# INLINEABLE renderPassDraw #-}
 
+renderPassSetBindGroup ::
+  HasRenderPassEncoder r m =>
+  Word32 ->
+  BindGroup ->
+  Vector Word32 ->
+  m ()
+renderPassSetBindGroup = access4 WGPU.renderPassSetBindGroup
+{-# INLINEABLE renderPassSetBindGroup #-}
+
+renderPassSetIndexBuffer ::
+  HasRenderPassEncoder r m =>
+  Buffer ->
+  IndexFormat ->
+  Word64 ->
+  Word64 ->
+  m ()
+renderPassSetIndexBuffer = access5 WGPU.renderPassSetIndexBuffer
+{-# INLINEABLE renderPassSetIndexBuffer #-}
+
+renderPassSetVertexBuffer ::
+  HasRenderPassEncoder r m =>
+  Word32 ->
+  Buffer ->
+  Word64 ->
+  Word64 ->
+  m ()
+renderPassSetVertexBuffer = access5 WGPU.renderPassSetVertexBuffer
+{-# INLINEABLE renderPassSetVertexBuffer #-}
+
+renderPassDrawIndexed ::
+  HasRenderPassEncoder r m =>
+  Range Word32 ->
+  Int32 ->
+  Range Word32 ->
+  m ()
+renderPassDrawIndexed = access4 WGPU.renderPassDrawIndexed
+{-# INLINEABLE renderPassDrawIndexed #-}
+
 endRenderPass :: HasRenderPassEncoder r m => m ()
 endRenderPass = access WGPU.endRenderPass
 {-# INLINEABLE endRenderPass #-}
@@ -291,6 +424,24 @@ queueSubmit = access2 WGPU.queueSubmit
 queueSubmit' :: HasDevice r m => Vector CommandBuffer -> m ()
 queueSubmit' = buildQueue . queueSubmit
 {-# INLINEABLE queueSubmit' #-}
+
+queueWriteTexture ::
+  (HasQueue r m, ReadableMemoryBuffer a) =>
+  ImageCopyTexture ->
+  TextureDataLayout ->
+  Extent3D ->
+  a ->
+  m ()
+queueWriteTexture = access5 WGPU.queueWriteTexture
+{-# INLINEABLE queueWriteTexture #-}
+
+queueWriteBuffer ::
+  (HasQueue r m, ReadableMemoryBuffer a) =>
+  Buffer ->
+  a ->
+  m ()
+queueWriteBuffer = access3 WGPU.queueWriteBuffer
+{-# INLINEABLE queueWriteBuffer #-}
 
 -------------------------------------------------------------------------------
 -- Version

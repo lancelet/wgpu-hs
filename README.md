@@ -21,3 +21,6 @@ windowing systems.
 
 To get started, please read the [Getting Started](GettingStarted.md)
 instructions.
+
+![cube demo](cube-demo.png)
+

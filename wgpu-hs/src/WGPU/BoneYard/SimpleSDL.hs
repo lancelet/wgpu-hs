@@ -28,6 +28,40 @@ module WGPU.BoneYard.SimpleSDL
     emptySwapChainState,
     withSwapChain,
 
+    -- * Buffers
+
+    -- ** Types
+    Buffers,
+    BufferName,
+
+    -- ** Functions
+    emptyBuffers,
+    createBuffer,
+    createBufferInit,
+    getBuffer,
+
+    -- * Textures
+
+    -- ** Types
+    Textures,
+    TextureName,
+
+    -- ** Functions
+    emptyTextures,
+    createTexture,
+    getTexture,
+
+    -- * Bind Groups
+
+    -- ** Types
+    BindGroups,
+    BindGroupName,
+
+    -- ** Functions
+    emptyBindGroups,
+    createBindGroup,
+    getBindGroup,
+
     -- * Render Pipelines
 
     -- ** Types
@@ -59,6 +93,8 @@ module WGPU.BoneYard.SimpleSDL
 
     -- ** Functions
     loadResources,
+    getWindow,
+    getDrawableSize,
 
     -- * Exceptions
     AppException (..),
@@ -83,17 +119,29 @@ import SDL (Window)
 import qualified SDL
 import WGPU
   ( Adapter,
+    BindGroup,
+    BindGroupDescriptor,
+    Buffer,
+    BufferDescriptor (BufferDescriptor),
+    BufferUsage,
+    ByteSize,
     Device,
     DeviceDescriptor,
+    Extent3D,
     Instance,
     Queue,
+    ReadableMemoryBuffer,
     RenderPipeline,
     RenderPipelineDescriptor,
     SMaybe,
     ShaderModule,
     Surface,
     SwapChain,
+    Texture,
+    TextureDescriptor (TextureDescriptor),
+    TextureDimension,
     TextureFormat,
+    TextureUsage,
     WGSL,
   )
 import qualified WGPU
@@ -166,13 +214,193 @@ withSwapChain action = do
           surface
           WGPU.SwapChainDescriptor
             { swapChainLabel = "SwapChain",
-              usage = WGPU.TextureUsageRenderAttachment,
+              usage = def {WGPU.texRenderAttachment = True},
               swapChainFormat = textureFormat,
-              width = w,
-              height = h,
+              swapChainWidth = w,
+              swapChainHeight = h,
               presentMode = WGPU.PresentModeFifo
             }
       pure (Just (SwapChainDetails (w, h) swapChain), swapChain)
+
+-------------------------------------------------------------------------------
+-- Buffer Collection
+
+-- | Name of a buffer.
+newtype BufferName = BufferName {unBufferName :: Text}
+  deriving (Eq, Ord, IsString, Show)
+
+-- | Container for buffers (map of 'BufferName' to 'Buffer').
+newtype Buffers = Buffers
+  {unBuffers :: MVarMap BufferName Buffer}
+
+-- | Create an empty 'Buffers' collection.
+emptyBuffers :: MonadResource m => m Buffers
+emptyBuffers = Buffers <$> emptyMVarMap
+
+-- | Create an uninitialized 'Buffer'.
+createBuffer ::
+  (MonadIO m, C.HasDevice r m, Has Buffers r) =>
+  -- | Name of the buffer.
+  BufferName ->
+  -- | Size of the buffer in bytes.
+  ByteSize ->
+  -- | Usage of the buffer.
+  BufferUsage ->
+  -- | Action which creates the buffer.
+  m Buffer
+createBuffer bufferName bufferSize bufferUsage = do
+  let bufferDescriptor =
+        BufferDescriptor
+          { bufferLabel = unBufferName bufferName,
+            bufferSize = bufferSize,
+            bufferUsage = bufferUsage,
+            mappedAtCreation = False
+          }
+  buffer <- C.createBuffer bufferDescriptor
+  asks getter >>= insertMVarMap bufferName buffer . unBuffers
+  pure buffer
+
+-- | Create a 'Buffer' with specified content, storing it in the 'Buffers' map.
+createBufferInit ::
+  (MonadIO m, C.HasDevice r m, Has Buffers r, ReadableMemoryBuffer a) =>
+  -- | Name of the buffer.
+  BufferName ->
+  -- | Usage of the buffer.
+  BufferUsage ->
+  -- | Contents of the buffer.
+  a ->
+  -- | Action which creates the buffer.
+  m Buffer
+createBufferInit bufferName bufferUsage content = do
+  buffer <- C.createBufferInit (unBufferName bufferName) bufferUsage content
+  asks getter >>= insertMVarMap bufferName buffer . unBuffers
+  pure buffer
+
+-- | Fetch a buffer that was previously created.
+--
+-- If the buffer pipeline is not available, this function throws an exception of
+-- type 'AppException'.
+getBuffer ::
+  (MonadIO m, Has Buffers r, MonadReader r m, MonadThrow m) =>
+  BufferName ->
+  m Buffer
+getBuffer bufferName = do
+  mBuffer <- asks getter >>= lookupMVarMap bufferName . unBuffers
+  case mBuffer of
+    Just buffer -> pure buffer
+    Nothing -> throwM (UnknownBufferName bufferName)
+
+-------------------------------------------------------------------------------
+-- Textures Collection
+
+-- | Name of a texture.
+newtype TextureName = TextureName {unTextureName :: Text}
+  deriving (Eq, Ord, IsString, Show)
+
+-- | Container for textures (map of 'TextureName' to 'Texture').
+newtype Textures = Textures
+  {unTextures :: MVarMap TextureName Texture}
+
+-- | Create an empty 'Textures' collection.
+emptyTextures :: MonadResource m => m Textures
+emptyTextures = Textures <$> emptyMVarMap
+
+-- | Create a 'Texture' and add it to the 'Textures' map.
+createTexture ::
+  (MonadIO m, C.HasDevice r m, Has Textures r) =>
+  -- | Name of the texture to create.
+  TextureName ->
+  -- | Extent / size of the texture.
+  Extent3D ->
+  -- | Mip level count.
+  Word32 ->
+  -- | Sample count.
+  Word32 ->
+  -- | Dimension (1D, 2D, 3D) of the texture.
+  TextureDimension ->
+  -- | Format of an element of the texture.
+  TextureFormat ->
+  -- | Usages of the texture.
+  TextureUsage ->
+  -- | Action to create the texture.
+  m Texture
+createTexture
+  name
+  size
+  mipLevelCount
+  sampleCount
+  dimension
+  format
+  textureUsage = do
+    let textureDescriptor =
+          TextureDescriptor
+            { textureLabel = unTextureName name,
+              textureSize = size,
+              mipLevelCount = mipLevelCount,
+              sampleCount = sampleCount,
+              dimension = dimension,
+              format = format,
+              textureUsage = textureUsage
+            }
+    texture <- C.createTexture textureDescriptor
+    asks getter >>= insertMVarMap name texture . unTextures
+    pure texture
+
+-- | Fetch a texture that was previously created using 'createTexture'.
+--
+-- If the texture is not available, this function throws an exception of type
+-- 'AppException'.
+getTexture ::
+  (MonadIO m, Has Textures r, MonadReader r m, MonadThrow m) =>
+  -- | Name of the texture to fetch.
+  TextureName ->
+  -- | Action which fetches the texture.
+  m Texture
+getTexture name = do
+  mTexture <- asks getter >>= lookupMVarMap name . unTextures
+  case mTexture of
+    Just texture -> pure texture
+    Nothing -> throwM (UnknownTextureName name)
+
+-------------------------------------------------------------------------------
+-- Bind Groups Collection
+
+-- | Name of a bind group.
+newtype BindGroupName = BindGroupName {unBindGroupName :: Text}
+  deriving (Eq, Ord, IsString, Show)
+
+-- | Container for bind groups that contains a map of bind groups.
+newtype BindGroups = BindGroups
+  {unBindGroups :: MVarMap BindGroupName BindGroup}
+
+-- | Create an empty 'BindGroups' collection.
+emptyBindGroups :: MonadResource m => m BindGroups
+emptyBindGroups = BindGroups <$> emptyMVarMap
+
+-- | Create a new 'BindGroup', adding it to the 'BindGroups' collection.
+createBindGroup ::
+  (MonadIO m, C.HasDevice r m, Has BindGroups r) =>
+  BindGroupName ->
+  BindGroupDescriptor ->
+  m BindGroup
+createBindGroup name bindGroupDescriptor = do
+  bindGroup <- C.createBindGroup bindGroupDescriptor
+  asks getter >>= insertMVarMap name bindGroup . unBindGroups
+  pure bindGroup
+
+-- | Fetch a 'BindGroup' that was previously created using 'createBindGroup'.
+--
+-- If the bind group is not available, this function throws an exception of type
+-- 'AppException'.
+getBindGroup ::
+  (MonadIO m, Has BindGroups r, MonadReader r m, MonadThrow m) =>
+  BindGroupName ->
+  m BindGroup
+getBindGroup bindGroupName = do
+  mBindGroup <- asks getter >>= lookupMVarMap bindGroupName . unBindGroups
+  case mBindGroup of
+    Just bindGroup -> pure bindGroup
+    Nothing -> throwM (UnknownBindGroupName bindGroupName)
 
 -------------------------------------------------------------------------------
 -- Render Pipeline Collection
@@ -373,6 +601,14 @@ instance Has Device Resources where
 instance Has Queue Resources where
   hasLens = lens queue (\s x -> s {queue = x})
 
+getWindow :: (Has Window r, MonadReader r m) => m Window
+getWindow = asks getter
+
+getDrawableSize :: (Has Window r, MonadReader r m, MonadIO m) => m (Int, Int)
+getDrawableSize = do
+  SDL.V2 w h <- getWindow >>= SDL.glGetDrawableSize
+  pure (fromIntegral w, fromIntegral h)
+
 -------------------------------------------------------------------------------
 -- Map inside an MVar
 
@@ -402,6 +638,12 @@ data AppException
     UnknownShaderName ShaderName
   | -- | Requesting a render pipeline failed.
     UnknownRenderPipelineName RenderPipelineName
+  | -- | Requesting a buffer failed.
+    UnknownBufferName BufferName
+  | -- | Requesting a texture failed.
+    UnknownTextureName TextureName
+  | -- | Requesting a bind group failed.
+    UnknownBindGroupName BindGroupName
   deriving (Show)
 
 instance Exception AppException

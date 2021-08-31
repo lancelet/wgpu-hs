@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -64,10 +65,15 @@ module WGPU.Internal.Memory
     FromRaw (fromRaw),
     ToRawPtr (rawPtr),
     FromRawPtr (fromRawPtr),
+    ReadableMemoryBuffer (withReadablePtr, readableMemoryBufferSize),
+
+    -- * Types
+    ByteSize (ByteSize, unByteSize),
 
     -- * Functions
 
     -- ** Internal
+    toCSize,
     evalContT,
     allocaC,
     rawArrayPtr,
@@ -93,11 +99,13 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Vector.Generic (Vector)
 import qualified Data.Vector.Generic as Vector
-import Data.Word (Word8)
+import qualified Data.Vector.Storable as SVector
+import Data.Word (Word32, Word8)
 import Foreign
   ( FunPtr,
     Ptr,
     Storable,
+    Word64,
     advancePtr,
     alignment,
     alloca,
@@ -108,7 +116,7 @@ import Foreign
     sizeOf,
   )
 import qualified Foreign (fillBytes, freeHaskellFunPtr, poke)
-import Foreign.C (CBool, CChar, peekCString, withCString)
+import Foreign.C (CBool, CChar, CSize (CSize), peekCString, withCString)
 
 -------------------------------------------------------------------------------
 -- Type Classes
@@ -182,6 +190,9 @@ instance {-# OVERLAPPABLE #-} (Storable b, FromRaw b a) => FromRawPtr b a where
 instance ToRaw Bool CBool where
   raw x = pure (if x then 1 else 0)
   {-# INLINE raw #-}
+
+instance ToRaw Word32 Word32 where
+  raw = pure
 
 instance ToRawPtr Text CChar where
   rawPtr = withCStringC . Text.unpack
@@ -261,6 +272,62 @@ zeroMemory ptr = fillBytes ptr 0x00
 
 evalContT :: Monad m => ContT a m a -> m a
 evalContT cont = runContT cont pure
+
+-------------------------------------------------------------------------------
+
+-- | Size, in number of bytes.
+newtype ByteSize = ByteSize {unByteSize :: Word64}
+  deriving (Eq, Ord, Show, Enum, Real, Integral, Num)
+
+instance ToRaw ByteSize CSize where
+  raw = pure . toCSize
+
+toCSize :: ByteSize -> CSize
+toCSize = CSize . unByteSize
+
+-------------------------------------------------------------------------------
+
+-- | Region of memory that is read-only for WGPU.
+--
+-- A 'ReadableMemoryBuffer' represents a contiguous region of memory that WGPU
+-- may read from, but not write to. It has a pointer to the start of the region,
+-- and a size in bytes.
+--
+-- When the caller of WGPU supplies a 'ReadableMemoryBuffer', it commits to
+-- keeping the buffer alive for the period of the call to `withReadablePtr`.
+-- WGPU commits to not mutating the data.
+--
+-- If it is necessary to refer to slices within a buffer, it is up to the type
+-- @a@ to store those offsets and account for them in the two functions required
+-- by the API. (For example, 'SVector.Vector' does this.)
+class ReadableMemoryBuffer a where
+  -- | Perform an action with the memory buffer.
+  withReadablePtr :: a -> (Ptr () -> IO b) -> IO b
+
+  -- | The size of the buffer, in number of bytes.
+  readableMemoryBufferSize :: a -> ByteSize
+
+instance {-# OVERLAPPABLE #-} Storable a => ReadableMemoryBuffer a where
+  withReadablePtr x action =
+    alloca $ \ptr -> do
+      poke ptr x
+      result <- action (castPtr ptr)
+      zeroMemory ptr (sizeOf (undefined :: a))
+      pure result
+  {-# INLINEABLE withReadablePtr #-}
+  readableMemoryBufferSize x = ByteSize (fromIntegral (sizeOf x))
+  {-# INLINEABLE readableMemoryBufferSize #-}
+
+instance
+  {-# OVERLAPPABLE #-}
+  Storable a =>
+  ReadableMemoryBuffer (SVector.Vector a)
+  where
+  withReadablePtr vec action = SVector.unsafeWith vec (action . castPtr)
+  {-# INLINEABLE withReadablePtr #-}
+  readableMemoryBufferSize vec =
+    ByteSize . fromIntegral $ sizeOf (undefined :: a) * SVector.length vec
+  {-# INLINEABLE readableMemoryBufferSize #-}
 
 -------------------------------------------------------------------------------
 
