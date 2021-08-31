@@ -1,5 +1,9 @@
 # Revision history for wgpu-raw-hs
 
+## 0.4.0.0 -- 2021-09-10
+
+- Version bump.
+
 ## 0.3.0.0 -- 2021-08-30
 
 - Add SDL surfaces.

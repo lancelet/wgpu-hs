@@ -41,11 +41,29 @@ module WGPU
     Features (..),
     requestDevice,
 
+    -- * Buffers
+    Buffer,
+    BufferDescriptor (..),
+    BufferUsage (..),
+    createBuffer,
+    createBufferInit,
+
     -- * Textures and Views
+    Texture,
     TextureView,
     TextureViewDimension (..),
     TextureFormat (..),
     TextureUsage (..),
+    Extent3D (..),
+    TextureDimension (..),
+    TextureDescriptor (..),
+    Origin3D (..),
+    TextureAspect (..),
+    ImageCopyTexture (..),
+    TextureDataLayout (..),
+    TextureViewDescriptor (..),
+    createTexture,
+    createView,
 
     -- * Swapchain
     SwapChain,
@@ -57,9 +75,17 @@ module WGPU
     swapChainPresent,
 
     -- * Samplers
+    Sampler,
+    AddressMode (..),
+    FilterMode (..),
+    SamplerDescriptor (..),
+    createSampler,
 
     -- * Resource Binding
+    BindGroup,
     BindGroupLayout,
+    BindGroupDescriptor (..),
+    BindGroupEntry (..),
     BindGroupLayoutDescriptor (..),
     BindGroupLayoutEntry (..),
     Binding (..),
@@ -72,6 +98,9 @@ module WGPU
     StorageTextureAccess (..),
     TextureSampleType (..),
     BufferBindingType (..),
+    BindingResource (..),
+    BufferBinding (..),
+    createBindGroup,
     createBindGroupLayout,
 
     -- * Shader Modules
@@ -138,13 +167,19 @@ module WGPU
     commandEncoderFinish,
     beginRenderPass,
     renderPassSetPipeline,
+    renderPassSetBindGroup,
+    renderPassSetIndexBuffer,
+    renderPassSetVertexBuffer,
     renderPassDraw,
+    renderPassDrawIndexed,
     endRenderPass,
 
     -- * Queue
     Queue,
     getQueue,
     queueSubmit,
+    queueWriteTexture,
+    queueWriteBuffer,
 
     -- * Version
     Version (..),
@@ -165,21 +200,30 @@ module WGPU
     -- ** Strict Maybe
     SMaybe (..),
     fromSMaybe,
+
+    -- ** Additional Classes
+    ReadableMemoryBuffer (..),
+
+    -- ** Additional Types
+    ByteSize (..),
   )
 where
 
 import WGPU.Internal.Adapter
 import WGPU.Internal.Binding
+import WGPU.Internal.Buffer
 import WGPU.Internal.Color
 import WGPU.Internal.CommandBuffer
 import WGPU.Internal.CommandEncoder
 import WGPU.Internal.Device
 import WGPU.Internal.Instance
+import WGPU.Internal.Memory
 import WGPU.Internal.Multipurpose
 import WGPU.Internal.Pipeline
 import WGPU.Internal.Queue
 import WGPU.Internal.RenderPass
 import WGPU.Internal.SMaybe
+import WGPU.Internal.Sampler
 import WGPU.Internal.Shader
 import WGPU.Internal.Surface
 import WGPU.Internal.SwapChain

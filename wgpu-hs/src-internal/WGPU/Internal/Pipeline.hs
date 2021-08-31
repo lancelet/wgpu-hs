@@ -14,7 +14,6 @@ module WGPU.Internal.Pipeline
     VertexBufferLayout (..),
     VertexState (..),
     PrimitiveTopology (..),
-    IndexFormat (..),
     FrontFace (..),
     CullMode (..),
     PrimitiveState (..),
@@ -61,7 +60,7 @@ import WGPU.Internal.Memory
     rawPtr,
     showWithPtr,
   )
-import WGPU.Internal.Multipurpose (CompareFunction)
+import WGPU.Internal.Multipurpose (CompareFunction, IndexFormat)
 import WGPU.Internal.RenderPass (RenderPipeline (RenderPipeline))
 import WGPU.Internal.SMaybe (SMaybe (SJust, SNothing))
 import WGPU.Internal.Shader (ShaderEntryPoint, ShaderModule)
@@ -76,7 +75,6 @@ import WGPU.Raw.Generated.Enum.WGPUCullMode (WGPUCullMode)
 import qualified WGPU.Raw.Generated.Enum.WGPUCullMode as WGPUCullMode
 import WGPU.Raw.Generated.Enum.WGPUFrontFace (WGPUFrontFace)
 import qualified WGPU.Raw.Generated.Enum.WGPUFrontFace as WGPUFrontFace
-import WGPU.Raw.Generated.Enum.WGPUIndexFormat (WGPUIndexFormat)
 import qualified WGPU.Raw.Generated.Enum.WGPUIndexFormat as WGPUIndexFormat
 import WGPU.Raw.Generated.Enum.WGPUInputStepMode (WGPUInputStepMode)
 import qualified WGPU.Raw.Generated.Enum.WGPUInputStepMode as WGPUInputStepMode
@@ -256,7 +254,7 @@ data VertexAttribute = VertexAttribute
   { -- | Format of the input.
     vertexFormat :: !VertexFormat,
     -- | Byte offset of the start of the input.
-    offset :: !Word64,
+    vertexOffset :: !Word64,
     -- | Location for this input. Must match the location in the shader.
     shaderLocation :: !Word32
   }
@@ -268,7 +266,7 @@ instance ToRaw VertexAttribute WGPUVertexAttribute where
     pure
       WGPUVertexAttribute.WGPUVertexAttribute
         { format = n_format,
-          offset = offset,
+          offset = vertexOffset,
           shaderLocation = shaderLocation
         }
 
@@ -367,24 +365,6 @@ instance ToRaw PrimitiveTopology WGPUPrimitiveTopology where
         PrimitiveTopologyLineStrip -> WGPUPrimitiveTopology.LineStrip
         PrimitiveTopologyTriangleList -> WGPUPrimitiveTopology.TriangleList
         PrimitiveTopologyTriangleStrip -> WGPUPrimitiveTopology.TriangleStrip
-
--------------------------------------------------------------------------------
-
--- | Format of indices used within a pipeline.
-data IndexFormat
-  = -- | Indices are 16-bit unsigned integers ('Word16')
-    IndexFormatUint16
-  | -- | Indices are 32-bit unsigned integers ('Word32')
-    IndexFormatUint32
-  deriving (Eq, Show)
-
--- | Convert an 'IndexFormat' to its raw value.
-instance ToRaw IndexFormat WGPUIndexFormat where
-  raw idxFmt =
-    pure $
-      case idxFmt of
-        IndexFormatUint16 -> WGPUIndexFormat.Uint16
-        IndexFormatUint32 -> WGPUIndexFormat.Uint32
 
 -------------------------------------------------------------------------------
 

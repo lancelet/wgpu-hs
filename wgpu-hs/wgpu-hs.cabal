@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               wgpu-hs
-version:            0.3.0.0
+version:            0.4.0.0
 synopsis:           WGPU
 description:        A high-level binding to WGPU.
 bug-reports:        https://github.com/lancelet/wgpu-hs/issues
@@ -42,6 +42,7 @@ library wgpu-hs-internal
   exposed-modules:
     WGPU.Internal.Adapter
     WGPU.Internal.Binding
+    WGPU.Internal.Buffer
     WGPU.Internal.ChainedStruct
     WGPU.Internal.Color
     WGPU.Internal.CommandBuffer
@@ -94,7 +95,7 @@ library
     , text              ^>=1.2.4
     , vector            ^>=0.12.3
     , wgpu-hs-internal
-    , wgpu-raw-hs       ==0.3.0.0
+    , wgpu-raw-hs       ==0.4.0.0
 
   exposed-modules:
     WGPU
@@ -149,3 +150,29 @@ executable triangle-glfw
 
   hs-source-dirs: examples/triangle-glfw
   main-is:        TriangleGLFW.hs
+
+executable cube
+  import:         base, ghc-options
+
+  if (flag(examples) && flag(sdl2))
+    build-depends:
+      , data-default     ^>=0.7.1.1
+      , data-has         ^>=0.4.0.0
+      , derive-storable  ^>=0.3.0.0
+      , JuicyPixels      ^>=3.3.5
+      , lens             ^>=5.0.1
+      , linear           ^>=1.21.6
+      , mtl              ^>=2.2.2
+      , resourcet        ^>=1.2.4.3
+      , safe-exceptions  ^>=0.1.7.2
+      , sdl2             ^>=2.5.3.0
+      , string-qq        ^>=0.0.4
+      , text             ^>=1.2.4
+      , vector           ^>=0.12.3
+      , wgpu-hs
+
+  else
+    buildable: False
+
+  hs-source-dirs: examples/cube
+  main-is:        Cube.hs

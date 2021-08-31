@@ -1,5 +1,10 @@
 # Revision history for wgpu-hs
 
+## 0.4.0.0 -- 2021-09-10
+
+- Add `cube `example.
+- Initial support for buffers and textures.
+
 ## 0.3.0.0 -- 2021-08-30
 
 - Add Classy interface - supply parameters from `ReaderT`.
