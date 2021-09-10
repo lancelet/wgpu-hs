@@ -327,7 +327,8 @@ import WGPU.Internal.Texture
 --
 -- A 'Surface' is a handle to a platform-specific presentable surface, like a
 -- window. First, create either a GLFW or SDL window, and then create a surface
--- using either 'createGLFWSurface' or 'createSDLSurface'.
+-- using either 'WGPU.GLFW.Surface.createSurface' (GLFW) or
+-- 'WGPU.SDL.Surface.createSurface' (SDL2).
 --
 -- Once you have a 'Surface', the next step is usually to
 -- <WGPU.html#g:adapter request an adapter> that is compatible with it.
