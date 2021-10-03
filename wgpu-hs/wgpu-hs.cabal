@@ -29,7 +29,7 @@ flag sdl2
 
 common base
   default-language: Haskell2010
-  build-depends:    base ^>=4.14.0.0
+  build-depends:    base ^>=4.14.3.0
 
 common ghc-options
   ghc-options:
