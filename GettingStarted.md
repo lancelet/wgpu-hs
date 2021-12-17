@@ -48,17 +48,18 @@ of macOS Big Sur (11.5.2) on 2021-08-21.
      popd
      ```
      
-  1. Set `LD_LIBRARY_PATH` to include the Rust dynamic library that was just
+  1. Set `DYLD_LIBRARY_PATH` to include the Rust dynamic library that was just
      built:
      
      ```sh
-     export LD_LIBRARY_PATH=$(pwd)/wgpu-raw-hs-codegen/wgpu-native/target/debug/:$LD_LIBRARY_PATH
+     export DYLD_LIBRARY_PATH=$(pwd)/wgpu-raw-hs-codegen/wgpu-native/target/debug/:$DYLD_LIBRARY_PATH
      ```
      
-  1. Build and run the `triangle` example:
+  1. Build and run the `triangle-sdl` example:
   
      ```sh
-     cabal run triangle
+     cabal build all
+     cabal run triangle-sdl
      ```
 
 ![triangle demo](triangle-demo.png)
@@ -117,10 +118,11 @@ of Windows 10 on 2021-08-21.
      cp wgpu-raw-hs-codegen/wgpu-native/target/debug/wgpu_native.dll wgpu_native.dll 
      ```
      
-  1. Build and run the `triangle` example:
+  1. Build and run the `triangle-sdl` example:
   
      ```powershell
-     cabal run triangle 
+     cabal build all
+     cabal run triangle-sdl
      ```
 
 ## Ubuntu Linux
@@ -193,8 +195,9 @@ These instructions were tested manually in a fresh installation of Ubuntu Linux
      export LD_LIBRARY_PATH=$(pwd)/wgpu-raw-hs-codegen/wgpu-native/target/debug/:$LD_LIBRARY_PATH
      ```
      
-  1. Build and run the `triangle` example:
+  1. Build and run the `triangle-sdl` example:
   
      ```sh
-     cabal run triangle
+     cabal build all
+     cabal run triangle-sdl
      ```
