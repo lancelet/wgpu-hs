@@ -20,7 +20,7 @@ of macOS Big Sur (11.5.2) on 2021-08-21.
      `ghcup`. You may need to run the install command twice, the second time
      after being prompted to install the XCode command line tools. Instructions
      will be displayed in the terminal. You may need to use `ghcup tui` to
-     select an appropriate GHC version (GHC 8.10.5).
+     select an appropriate GHC version (GHC 8.10.7) and Cabal version (Cabal 3.4). 
 
   1. Install the [Homebrew](https://brew.sh/) package manager.
 
@@ -61,6 +61,37 @@ of macOS Big Sur (11.5.2) on 2021-08-21.
      cabal run triangle
      ```
 
+### Potential Fixes (tested on an M3 MacBook Pro)
+
+  1. Install the correct LLVM version
+
+      If you face the following error during the build-process:
+
+      ```sh
+      <no location info>: error:
+          Warning: Couldn't figure out LLVM version!
+                   Make sure you have installed LLVM between [9 and 13)
+      ghc: could not execute: opt
+      cabal: Failed to build wgpu-raw-hs-0.4.0.0 (which is required by
+      exe:triangle-glfw from wgpu-hs-0.4.0.0).
+      ```
+
+      You need to make sure the correct LLVM version is installed. It can be installed with:
+
+      ```sh
+      brew install llvm@12
+      # make sure to add it to your path:
+      export PATH=$PATH:/opt/homebrew/opt/llvm@12/bin/
+      ```
+
+  1. Add the Dylib to correct path:
+
+        If you are still getting a linking error, try adding it to `DYLD_LIBRARY_PATH` instead of `LD_LIBRARY_PATH`:
+
+        ```sh
+        export DYLD_LIBRARY_PATH=$(pwd)/wgpu-raw-hs-codegen/wgpu-native/target/debug/:$DYLD_LIBRARY_PATH
+        ```
+
 ![triangle demo](triangle-demo.png)
 
 ## Microsoft Windows
@@ -81,7 +112,7 @@ of Windows 10 on 2021-08-21.
   1. Install the [Haskell toolchain](https://www.haskell.org/ghcup/) using
      `ghcup`. `HLS` and `Stack` are optional installations, but make sure to
      install `MSys2`. You may need to use `ghcup tui` to select an appropriate
-     GHC version (GHC 8.10.5).
+     GHC version (GHC 8.10.7) and Cabal version (Cabal 3.4). 
      
   1. Install the [Chocolatey](https://chocolatey.org/) package manager.
 
@@ -166,7 +197,7 @@ These instructions were tested manually in a fresh installation of Ubuntu Linux
 
   1. Install the [Haskell toolchain](https://www.haskell.org/ghcup/) using
      `ghcup`. You may need to use `ghcup tui` to select an appropriate GHC
-     version (GHC 8.10.5).
+     version (GHC 8.10.7) and Cabal version (Cabal 3.4). 
 
 ### Build and Run an Example
 
