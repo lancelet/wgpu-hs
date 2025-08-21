@@ -83,7 +83,7 @@ data EnumVariant = EnumVariant
   deriving (TextShow) via FromGeneric EnumVariant
   deriving (Show) via FromTextShow EnumVariant
 
-data EnumEntry = NullEnumEntry | NamedEnumEntry !EnumVariant
+data EnumEntry = NullEnumEntry | EnumEntry !EnumVariant
   deriving stock (Eq, Generic)
   deriving (TextShow) via FromGeneric EnumEntry
   deriving (Show) via FromTextShow EnumEntry
@@ -186,11 +186,11 @@ instance FromJSON EnumVariant where
 
 instance ToJSON EnumEntry where
   toJSON NullEnumEntry = String "null"
-  toJSON (NamedEnumEntry v) = toJSON v
+  toJSON (EnumEntry v) = toJSON v
 
 instance FromJSON EnumEntry where
   parseJSON (String "null") = pure NullEnumEntry
-  parseJSON (Object o) = NamedEnumEntry <$> parseJSON (Object o)
+  parseJSON (Object o) = EnumEntry <$> parseJSON (Object o)
   parseJSON _ = failText "EnumEntry must be a string or object"
 
 ---- HELPER FUNCTIONS -----------------------------------------------------------------------------

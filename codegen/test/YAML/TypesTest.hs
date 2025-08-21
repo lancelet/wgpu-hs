@@ -15,7 +15,7 @@ import Hedgehog.Range qualified as Range
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (testCase, (@?=))
 import Test.Tasty.Hedgehog (testProperty)
-import YAML.Types (Constant (..), EnumEntry (NamedEnumEntry, NullEnumEntry), EnumVariant (..), Name, Value64 (..), mkName, nameQQ)
+import YAML.Types (Constant (..), EnumEntry (EnumEntry, NullEnumEntry), EnumVariant (..), Name, Value64 (..), mkName, nameQQ)
 
 tests :: TestTree
 tests =
@@ -57,7 +57,7 @@ genEnumEntry :: Gen EnumEntry
 genEnumEntry =
   Gen.frequency
     [ (1, pure NullEnumEntry),
-      (10, NamedEnumEntry <$> genEnumVariant)
+      (10, EnumEntry <$> genEnumVariant)
     ]
 
 ---- PROPERTIES -----------------------------------------------------------------------------------
