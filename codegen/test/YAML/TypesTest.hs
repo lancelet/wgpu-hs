@@ -8,6 +8,7 @@ module YAML.TypesTest (tests) where
 import Data.ByteString (ByteString)
 import Data.Text (Text)
 import Data.Text qualified as T
+import Data.Vector qualified as V
 import Data.Yaml (FromJSON, ToJSON, decodeEither', encode)
 import Hedgehog (Gen, Property, PropertyT, failure, footnote, forAll, property, (===))
 import Hedgehog.Gen qualified as Gen
@@ -15,7 +16,17 @@ import Hedgehog.Range qualified as Range
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (testCase, (@?=))
 import Test.Tasty.Hedgehog (testProperty)
-import YAML.Types (Constant (..), EnumEntry (EnumEntry, NullEnumEntry), EnumVariant (..), Name, Value64 (..), mkName, nameQQ)
+import YAML.Types
+  ( Constant (..),
+    Enum (..),
+    EnumEntry (EnumEntry, NullEnumEntry),
+    EnumVariant (..),
+    Name,
+    Value64 (..),
+    mkName,
+    nameQQ,
+  )
+import Prelude hiding (Enum)
 
 tests :: TestTree
 tests =
@@ -25,8 +36,10 @@ tests =
       testProperty "Constant roundtrip" prop_constant_roundtrip,
       testProperty "EnumVariant roundtrip" prop_enum_variant_roundtrip,
       testProperty "EnumEntry roundtrip" prop_enum_entry_roundtrip,
+      testProperty "Enum roundtrip" prop_enum_roundtrip,
       testCase "Example: Constant parse" test_constant_parse,
-      testCase "Example: Enum variant parse" test_enum_variant_parse
+      testCase "Example: Enum variant parse" test_enum_variant_parse,
+      testCase "Example: Enum parse" test_enum_parse
     ]
 
 ---- GENERATORS -----------------------------------------------------------------------------------
@@ -60,6 +73,11 @@ genEnumEntry =
       (10, EnumEntry <$> genEnumVariant)
     ]
 
+genEnum :: Gen Enum
+genEnum = Enum <$> genName <*> genDoc <*> genEntries
+  where
+    genEntries = V.fromList <$> Gen.list (Range.linear 1 10) genEnumEntry
+
 ---- PROPERTIES -----------------------------------------------------------------------------------
 
 prop_value64_roundtrip :: Property
@@ -73,6 +91,9 @@ prop_enum_variant_roundtrip = mkPropRoundtrip genEnumVariant
 
 prop_enum_entry_roundtrip :: Property
 prop_enum_entry_roundtrip = mkPropRoundtrip genEnumEntry
+
+prop_enum_roundtrip :: Property
+prop_enum_roundtrip = mkPropRoundtrip genEnum
 
 ---- UNIT TESTS -----------------------------------------------------------------------------------
 
@@ -107,6 +128,35 @@ test_enum_variant_parse = do
         doc: Indicates a discrete GPU.
         """
   let expected = EnumVariant [nameQQ|discrete_GPU|] "Indicates a discrete GPU."
+  shouldParseAs expected yamlInput
+
+test_enum_parse :: IO ()
+test_enum_parse = do
+  let yamlInput =
+        """
+        name: texture_view_dimension
+        doc: Texture View Dimension
+        entries:
+          - null
+          - name: undefined
+            doc: Indicates no value
+          - name: 1D
+            doc: 1D Texture Dimension
+          - name: 2D
+            doc: 2D Texture Dimension
+        """
+  let expected =
+        Enum
+          { name = [nameQQ|texture_view_dimension|],
+            doc = "Texture View Dimension",
+            entries =
+              V.fromList
+                [ NullEnumEntry,
+                  EnumEntry (EnumVariant [nameQQ|undefined|] "Indicates no value"),
+                  EnumEntry (EnumVariant [nameQQ|1D|] "1D Texture Dimension"),
+                  EnumEntry (EnumVariant [nameQQ|2D|] "2D Texture Dimension")
+                ]
+          }
   shouldParseAs expected yamlInput
 
 ---- HELPER FUNCTIONS -----------------------------------------------------------------------------

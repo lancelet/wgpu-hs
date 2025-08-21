@@ -1,4 +1,3 @@
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 -- {-# LANGUAGE OverloadedRecordDot #-}
@@ -12,8 +11,9 @@ module YAML.Types
     Name (unName),
     Value64 (..),
     Constant (..),
-    EnumEntry (..),
     EnumVariant (..),
+    EnumEntry (..),
+    Enum (..),
 
     -- ** Errors
     Error (..),
@@ -29,12 +29,13 @@ where
 import Control.Monad ((>=>))
 import Data.Text (Text)
 import Data.Text qualified as T
+import Data.Vector (Vector)
 import Data.Word (Word64)
 import Data.Yaml
   ( FromJSON (parseJSON),
     Parser,
     ToJSON (toJSON),
-    Value (Number, Object, String),
+    Value (Null, Number, Object, String),
     object,
     withObject,
     (.:),
@@ -47,7 +48,9 @@ import Language.Haskell.TH.Syntax (lift)
 import Text.Regex.TDFA ((=~))
 import Text.Regex.TDFA.Text ()
 import TextShow (TextShow (..), showt)
+import TextShow.Data.Vector ()
 import TextShow.Generic (FromGeneric (..))
+import Prelude hiding (Enum)
 
 ---- DOMAIN TYPES ---------------------------------------------------------------------------------
 
@@ -87,6 +90,22 @@ data EnumEntry = NullEnumEntry | EnumEntry !EnumVariant
   deriving stock (Eq, Generic)
   deriving (TextShow) via FromGeneric EnumEntry
   deriving (Show) via FromTextShow EnumEntry
+
+data Enum = Enum
+  { name :: !Name,
+    doc :: !Text,
+    entries :: !(Vector EnumEntry)
+  }
+  deriving stock (Eq, Generic)
+  deriving (TextShow) via FromGeneric Enum
+  deriving (Show) via FromTextShow Enum
+
+-- TODO
+-- [ ] - Bitflags
+-- [ ] - Callbacks
+-- [ ] - Structs
+-- [ ] - Functions
+-- [ ] - Objects
 
 ---- ERROR TYPE -----------------------------------------------------------------------------------
 
@@ -185,13 +204,28 @@ instance FromJSON EnumVariant where
       <*> o .: "doc"
 
 instance ToJSON EnumEntry where
-  toJSON NullEnumEntry = String "null"
+  toJSON NullEnumEntry = Null
   toJSON (EnumEntry v) = toJSON v
 
 instance FromJSON EnumEntry where
-  parseJSON (String "null") = pure NullEnumEntry
+  parseJSON Null = pure NullEnumEntry
   parseJSON (Object o) = EnumEntry <$> parseJSON (Object o)
   parseJSON _ = failText "EnumEntry must be a string or object"
+
+instance ToJSON Enum where
+  toJSON (Enum n d e) =
+    object
+      [ "name" .= n,
+        "doc" .= d,
+        "entries" .= e
+      ]
+
+instance FromJSON Enum where
+  parseJSON = withObject "Enum" $ \o ->
+    Enum
+      <$> o .: "name"
+      <*> o .: "doc"
+      <*> o .: "entries"
 
 ---- HELPER FUNCTIONS -----------------------------------------------------------------------------
 
