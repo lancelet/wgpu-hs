@@ -1,0 +1,3 @@
+[submodule "codegen/data/webgpu-headers"]
+	path = codegen/data/webgpu-headers
+	url = https://github.com/webgpu-native/webgpu-headers.git
