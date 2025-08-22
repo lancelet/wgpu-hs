@@ -14,6 +14,8 @@ module YAML.Types
     EnumVariant (..),
     EnumEntry (..),
     Enum (..),
+    BitFlagEntry (..),
+    BitFlag (..),
 
     -- ** Errors
     Error (..),
@@ -26,19 +28,27 @@ module YAML.Types
   )
 where
 
-import Control.Monad ((>=>))
+import Control.Monad (unless, (>=>))
+import Data.Aeson.Key qualified as Key
+import Data.Aeson.KeyMap (keys)
+import Data.List (sort)
+import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Vector (Vector)
+import Data.Vector qualified as V
 import Data.Word (Word64)
 import Data.Yaml
   ( FromJSON (parseJSON),
+    Object,
     Parser,
     ToJSON (toJSON),
     Value (Null, Number, Object, String),
     object,
     withObject,
+    (.!=),
     (.:),
+    (.:?),
     (.=),
   )
 import GHC.Generics (Generic)
@@ -99,6 +109,25 @@ data Enum = Enum
   deriving stock (Eq, Generic)
   deriving (TextShow) via FromGeneric Enum
   deriving (Show) via FromTextShow Enum
+
+data BitFlagEntry = BitFlagEntry
+  { name :: !Name,
+    doc :: !Text,
+    value :: !(Maybe Value64),
+    valueCombination :: !(Vector Name)
+  }
+  deriving stock (Eq, Generic)
+  deriving (TextShow) via FromGeneric BitFlagEntry
+  deriving (Show) via FromTextShow BitFlagEntry
+
+data BitFlag = BitFlag
+  { name :: !Name,
+    doc :: !Text,
+    entries :: !(Vector BitFlagEntry)
+  }
+  deriving stock (Eq, Generic)
+  deriving (TextShow) via FromGeneric BitFlag
+  deriving (Show) via FromTextShow BitFlag
 
 -- TODO
 -- [ ] - Bitflags
@@ -185,10 +214,12 @@ instance ToJSON Constant where
 
 instance FromJSON Constant where
   parseJSON = withObject "Constant" $ \o ->
-    Constant
-      <$> o .: "name"
-      <*> o .: "value"
-      <*> o .: "doc"
+    do
+      checkNoExtraFields "Constant" ["name", "value", "doc"] o
+      Constant
+        <$> o .: "name"
+        <*> o .: "value"
+        <*> o .: "doc"
 
 instance ToJSON EnumVariant where
   toJSON (EnumVariant n d) =
@@ -198,7 +229,8 @@ instance ToJSON EnumVariant where
       ]
 
 instance FromJSON EnumVariant where
-  parseJSON = withObject "NamedEnumEntry" $ \o ->
+  parseJSON = withObject "NamedEnumEntry" $ \o -> do
+    checkNoExtraFields "NamedEnumEntry" ["name", "doc"] o
     EnumVariant
       <$> o .: "name"
       <*> o .: "doc"
@@ -221,13 +253,56 @@ instance ToJSON Enum where
       ]
 
 instance FromJSON Enum where
-  parseJSON = withObject "Enum" $ \o ->
+  parseJSON = withObject "Enum" $ \o -> do
+    checkNoExtraFields "Enum" ["name", "doc", "entries"] o
     Enum
       <$> o .: "name"
       <*> o .: "doc"
       <*> o .: "entries"
 
+instance ToJSON BitFlagEntry where
+  toJSON (BitFlagEntry n d v vc) =
+    object $
+      [ "name" .= n,
+        "doc" .= d
+      ]
+        ++ maybe [] (\val -> ["value" .= val]) v
+        ++ (["value_combination" .= vc | not (V.null vc)])
+
+instance FromJSON BitFlagEntry where
+  parseJSON = withObject "BitFlagEntry" $ \o -> do
+    checkNoExtraFields "BitFlagEntry" ["name", "doc", "value", "value_combination"] o
+    BitFlagEntry
+      <$> o .: "name"
+      <*> o .: "doc"
+      <*> o .:? "value"
+      <*> o .:? "value_combination" .!= V.empty
+
+instance ToJSON BitFlag where
+  toJSON (BitFlag n d e) =
+    object
+      [ "name" .= n,
+        "doc" .= d,
+        "entries" .= e
+      ]
+
+instance FromJSON BitFlag where
+  parseJSON = withObject "BitFlag" $ \o -> do
+    checkNoExtraFields "BitFlag" ["name", "doc", "entries"] o
+    BitFlag
+      <$> o .: "name"
+      <*> o .: "doc"
+      <*> o .: "entries"
+
 ---- HELPER FUNCTIONS -----------------------------------------------------------------------------
+
+-- | Checks that a YAML object has no unexpected fields.
+checkNoExtraFields :: Text -> [Text] -> Object -> Parser ()
+checkNoExtraFields objName expectedKeys o = do
+  let isUnexpectedKey k = not $ Set.member k (Set.fromList expectedKeys)
+  let unexpectedKeys = sort $ filter isUnexpectedKey (Key.toText <$> keys o)
+  unless (null unexpectedKeys) $ do
+    failText $ "Unexpected fields in " <> objName <> ": " <> showt unexpectedKeys
 
 -- | Converts a text creation function to a JSON parser
 parseWith :: (Text -> Either Error a) -> Value -> Parser a
