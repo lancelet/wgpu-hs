@@ -20,13 +20,18 @@ import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (testCase, (@?=))
 import Test.Tasty.Hedgehog (testProperty)
 import YAML.Types
-  ( BitFlag (..),
+  ( ArrayType (..),
+    BaseType (..),
+    BitFlag (..),
     BitFlagEntry (..),
     Constant (..),
     Enum (..),
     EnumEntry (EnumEntry, NullEnumEntry),
     EnumVariant (..),
+    F32Nullable (..),
+    F64Supertype (..),
     Name,
+    StringHint (..),
     Value64 (..),
     mkName,
     nameQQ,
@@ -44,6 +49,8 @@ tests =
       testProperty "Enum roundtrip" prop_enum_roundtrip,
       testProperty "BitFlagEntry roundtrip" prop_bit_flag_entry_roundtrip,
       testProperty "BitFlag roundtrip" prop_bit_flag_roundtrip,
+      testProperty "BaseType roundtrip" prop_base_type_roundtrip,
+      testProperty "ArrayType roundtrip" prop_array_type_roundtrip,
       testCase "Example: Constant parse" test_constant_parse,
       testCase "Example: Constant extra fields are rejected" test_constant_extra_fields_rejected,
       testCase "Example: Enum variant parse" test_enum_variant_parse,
@@ -97,6 +104,34 @@ genBitFlag = BitFlag <$> genName <*> genDoc <*> genEntries
   where
     genEntries = V.fromList <$> Gen.list (Range.linear 1 32) genBitFlagEntry
 
+genBaseType :: Gen BaseType
+genBaseType =
+  Gen.choice
+    [ pure Tbool,
+      genString,
+      pure Tuint16,
+      pure Tuint32,
+      pure Tuint64,
+      pure Tusize,
+      pure Tint16,
+      pure Tint32,
+      genFloat32,
+      genFloat64
+    ]
+  where
+    genStringHint =
+      Gen.choice
+        [ pure StringNullable,
+          pure StringWithDefaultEmpty,
+          pure OutString
+        ]
+    genString = Tstring <$> Gen.maybe genStringHint
+    genFloat32 = Tfloat32 <$> Gen.maybe (pure F32Nullable)
+    genFloat64 = Tfloat64 <$> Gen.maybe (pure F64Supertype)
+
+genArrayType :: Gen ArrayType
+genArrayType = ArrayType <$> genBaseType
+
 ---- PROPERTIES -----------------------------------------------------------------------------------
 
 prop_value64_roundtrip :: Property
@@ -119,6 +154,12 @@ prop_bit_flag_entry_roundtrip = mkPropRoundtrip genBitFlagEntry
 
 prop_bit_flag_roundtrip :: Property
 prop_bit_flag_roundtrip = mkPropRoundtrip genBitFlag
+
+prop_base_type_roundtrip :: Property
+prop_base_type_roundtrip = mkPropRoundtrip genBaseType
+
+prop_array_type_roundtrip :: Property
+prop_array_type_roundtrip = mkPropRoundtrip genArrayType
 
 ---- UNIT TESTS -----------------------------------------------------------------------------------
 

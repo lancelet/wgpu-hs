@@ -16,6 +16,11 @@ module YAML.Types
     Enum (..),
     BitFlagEntry (..),
     BitFlag (..),
+    StringHint (..),
+    F32Nullable (..),
+    F64Supertype (..),
+    BaseType (..),
+    ArrayType (..),
 
     -- ** Errors
     Error (..),
@@ -39,7 +44,8 @@ import Data.Vector (Vector)
 import Data.Vector qualified as V
 import Data.Word (Word64)
 import Data.Yaml
-  ( FromJSON (parseJSON),
+  ( Array,
+    FromJSON (parseJSON),
     Object,
     Parser,
     ToJSON (toJSON),
@@ -129,8 +135,56 @@ data BitFlag = BitFlag
   deriving (TextShow) via FromGeneric BitFlag
   deriving (Show) via FromTextShow BitFlag
 
+data F32Nullable = F32Nullable
+  deriving stock (Eq, Generic)
+  deriving (TextShow) via FromGeneric F32Nullable
+  deriving (Show) via FromTextShow F32Nullable
+
+data F64Supertype = F64Supertype
+  deriving stock (Eq, Generic)
+  deriving (TextShow) via FromGeneric F64Supertype
+  deriving (Show) via FromTextShow F64Supertype
+
+data StringHint = StringNullable | StringWithDefaultEmpty | OutString
+  deriving stock (Eq, Generic)
+  deriving (TextShow) via FromGeneric StringHint
+  deriving (Show) via FromTextShow StringHint
+
+data BaseType
+  = Tbool
+  | Tstring !(Maybe StringHint)
+  | Tuint16
+  | Tuint32
+  | Tuint64
+  | Tusize
+  | Tint16
+  | Tint32
+  | Tfloat32 !(Maybe F32Nullable)
+  | Tfloat64 !(Maybe F64Supertype)
+  deriving stock (Eq, Generic)
+  deriving (TextShow) via FromGeneric BaseType
+  deriving (Show) via FromTextShow BaseType
+
+newtype ArrayType = ArrayType {arrayElemType :: BaseType}
+  deriving stock (Eq, Generic)
+  deriving (TextShow) via FromGeneric ArrayType
+  deriving (Show) via FromTextShow ArrayType
+
+data PrimitiveType
+  = PTVoid
+  | PTBase !BaseType
+  | PTArray !ArrayType
+
+{-
+data ParameterType = ParameterType
+  { name :: !Name,
+    doc :: !Text,
+
+  }
+-}
+
 -- TODO
--- [ ] - Bitflags
+-- [x] - Bitflags
 -- [ ] - Callbacks
 -- [ ] - Structs
 -- [ ] - Functions
@@ -293,6 +347,61 @@ instance FromJSON BitFlag where
       <$> o .: "name"
       <*> o .: "doc"
       <*> o .: "entries"
+
+instance ToJSON BaseType where
+  toJSON b = String $ case b of
+    Tbool -> "bool"
+    Tstring Nothing -> "string"
+    Tstring (Just StringNullable) -> "nullable_string"
+    Tstring (Just StringWithDefaultEmpty) -> "string_with_default_empty"
+    Tstring (Just OutString) -> "out_string"
+    Tuint16 -> "uint16"
+    Tuint32 -> "uint32"
+    Tuint64 -> "uint64"
+    Tusize -> "usize"
+    Tint16 -> "int16"
+    Tint32 -> "int32"
+    Tfloat32 Nothing -> "float32"
+    Tfloat32 (Just F32Nullable) -> "nullable_float32"
+    Tfloat64 Nothing -> "float64"
+    Tfloat64 (Just F64Supertype) -> "float64_supertype"
+
+instance FromJSON BaseType where
+  parseJSON (String s) = case s of
+    "bool" -> pure Tbool
+    "string" -> pure $ Tstring Nothing
+    "nullable_string" -> pure $ Tstring (Just StringNullable)
+    "string_with_default_empty" -> pure $ Tstring (Just StringWithDefaultEmpty)
+    "out_string" -> pure $ Tstring (Just OutString)
+    "uint16" -> pure Tuint16
+    "uint32" -> pure Tuint32
+    "uint64" -> pure Tuint64
+    "usize" -> pure Tusize
+    "int16" -> pure Tint16
+    "int32" -> pure Tint32
+    "float32" -> pure $ Tfloat32 Nothing
+    "nullable_float32" -> pure $ Tfloat32 (Just F32Nullable)
+    "float64" -> pure $ Tfloat64 Nothing
+    "float64_supertype" -> pure $ Tfloat64 (Just F64Supertype)
+    _ -> failText $ "Unknown PrimitiveType: " <> s
+  parseJSON _ = failText "PrimitiveType must be a JSON string"
+
+instance ToJSON ArrayType where
+  toJSON (ArrayType b) =
+    case toJSON b of
+      String s -> String $ "array<" <> s <> ">"
+      _ -> error "Base type does not serialize as a JSON String; cannot be used in an array."
+
+instance FromJSON ArrayType where
+  parseJSON (String s) =
+    let p = T.strip s
+     in case p of
+          _
+            | T.isPrefixOf "array<" p && T.isSuffixOf ">" p ->
+                let b = T.init $ T.drop 6 p
+                 in ArrayType <$> parseJSON (String b)
+          _ -> failText "Array types must be of the form: array<...>"
+  parseJSON _ = failText "ArrayType must be a JSON string"
 
 ---- HELPER FUNCTIONS -----------------------------------------------------------------------------
 
