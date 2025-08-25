@@ -22,6 +22,7 @@ module YAML.Types
     BaseType (..),
     ArrayType (..),
     PrimitiveType (..),
+    Pointer (..),
 
     -- ** Errors
     Error (..),
@@ -177,6 +178,11 @@ data PrimitiveType
   deriving stock (Eq, Generic)
   deriving (TextShow) via FromGeneric PrimitiveType
   deriving (Show) via FromTextShow PrimitiveType
+
+data Pointer = PtrImmutable | PtrMutable
+  deriving stock (Eq, Generic)
+  deriving (TextShow) via FromGeneric Pointer
+  deriving (Show) via FromTextShow Pointer
 
 {-
 data ParameterType = ParameterType
@@ -418,6 +424,17 @@ instance FromJSON PrimitiveType where
       | T.isPrefixOf "array<" p && T.isSuffixOf ">" p -> PTArray <$> parseJSON (String p)
       | otherwise -> PTBase <$> parseJSON (String p)
   parseJSON _ = failText "PrimitiveType must be a JSON string"
+
+instance ToJSON Pointer where
+  toJSON PtrImmutable = String "immutable"
+  toJSON PtrMutable = String "mutable"
+
+instance FromJSON Pointer where
+  parseJSON (String s) = case T.strip s of
+    "immutable" -> pure PtrImmutable
+    "mutable" -> pure PtrMutable
+    p -> failText $ "Unknown pointer value: " <> p
+  parseJSON _ = failText "Pointer must be a JSON string"
 
 ---- HELPER FUNCTIONS -----------------------------------------------------------------------------
 
