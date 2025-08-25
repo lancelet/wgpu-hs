@@ -21,6 +21,7 @@ module YAML.Types
     F64Supertype (..),
     BaseType (..),
     ArrayType (..),
+    PrimitiveType (..),
 
     -- ** Errors
     Error (..),
@@ -44,8 +45,7 @@ import Data.Vector (Vector)
 import Data.Vector qualified as V
 import Data.Word (Word64)
 import Data.Yaml
-  ( Array,
-    FromJSON (parseJSON),
+  ( FromJSON (parseJSON),
     Object,
     Parser,
     ToJSON (toJSON),
@@ -174,6 +174,9 @@ data PrimitiveType
   = PTVoid
   | PTBase !BaseType
   | PTArray !ArrayType
+  deriving stock (Eq, Generic)
+  deriving (TextShow) via FromGeneric PrimitiveType
+  deriving (Show) via FromTextShow PrimitiveType
 
 {-
 data ParameterType = ParameterType
@@ -402,6 +405,19 @@ instance FromJSON ArrayType where
                  in ArrayType <$> parseJSON (String b)
           _ -> failText "Array types must be of the form: array<...>"
   parseJSON _ = failText "ArrayType must be a JSON string"
+
+instance ToJSON PrimitiveType where
+  toJSON PTVoid = String "c_void"
+  toJSON (PTBase b) = toJSON b
+  toJSON (PTArray a) = toJSON a
+
+instance FromJSON PrimitiveType where
+  parseJSON (String s) = case T.strip s of
+    "c_void" -> pure PTVoid
+    p
+      | T.isPrefixOf "array<" p && T.isSuffixOf ">" p -> PTArray <$> parseJSON (String p)
+      | otherwise -> PTBase <$> parseJSON (String p)
+  parseJSON _ = failText "PrimitiveType must be a JSON string"
 
 ---- HELPER FUNCTIONS -----------------------------------------------------------------------------
 

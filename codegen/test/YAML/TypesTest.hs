@@ -31,6 +31,7 @@ import YAML.Types
     F32Nullable (..),
     F64Supertype (..),
     Name,
+    PrimitiveType (..),
     StringHint (..),
     Value64 (..),
     mkName,
@@ -51,6 +52,7 @@ tests =
       testProperty "BitFlag roundtrip" prop_bit_flag_roundtrip,
       testProperty "BaseType roundtrip" prop_base_type_roundtrip,
       testProperty "ArrayType roundtrip" prop_array_type_roundtrip,
+      testProperty "PrimitiveType roundtrip" prop_primitive_type_roundtrip,
       testCase "Example: Constant parse" test_constant_parse,
       testCase "Example: Constant extra fields are rejected" test_constant_extra_fields_rejected,
       testCase "Example: Enum variant parse" test_enum_variant_parse,
@@ -132,6 +134,14 @@ genBaseType =
 genArrayType :: Gen ArrayType
 genArrayType = ArrayType <$> genBaseType
 
+genPrimitiveType :: Gen PrimitiveType
+genPrimitiveType =
+  Gen.frequency
+    [ (1, pure PTVoid),
+      (12, PTBase <$> genBaseType),
+      (10, PTArray <$> genArrayType)
+    ]
+
 ---- PROPERTIES -----------------------------------------------------------------------------------
 
 prop_value64_roundtrip :: Property
@@ -160,6 +170,9 @@ prop_base_type_roundtrip = mkPropRoundtrip genBaseType
 
 prop_array_type_roundtrip :: Property
 prop_array_type_roundtrip = mkPropRoundtrip genArrayType
+
+prop_primitive_type_roundtrip :: Property
+prop_primitive_type_roundtrip = mkPropRoundtrip genPrimitiveType
 
 ---- UNIT TESTS -----------------------------------------------------------------------------------
 
