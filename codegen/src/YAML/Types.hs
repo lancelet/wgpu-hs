@@ -23,6 +23,8 @@ module YAML.Types
     ArrayType (..),
     PrimitiveType (..),
     Pointer (..),
+    ComplexClass (..),
+    ComplexType (..),
 
     -- ** Errors
     Error (..),
@@ -184,13 +186,26 @@ data Pointer = PtrImmutable | PtrMutable
   deriving (TextShow) via FromGeneric Pointer
   deriving (Show) via FromTextShow Pointer
 
-{-
-data ParameterType = ParameterType
-  { name :: !Name,
-    doc :: !Text,
+data ComplexClass
+  = CTypedef
+  | CEnum
+  | CBitFlag
+  | CStruct
+  | CFunction
+  | CObject
+  deriving stock (Eq, Generic)
+  deriving (TextShow) via FromGeneric ComplexClass
+  deriving (Show) via FromTextShow ComplexClass
 
+data ComplexType
+  = ComplexType
+  { isArray :: !Bool,
+    clazz :: !ComplexClass,
+    name :: !Name
   }
--}
+  deriving stock (Eq, Generic)
+  deriving (TextShow) via FromGeneric ComplexType
+  deriving (Show) via FromTextShow ComplexType
 
 -- TODO
 -- [x] - Bitflags
@@ -203,13 +218,15 @@ data ParameterType = ParameterType
 
 data Error
   = InvalidName
-  { input :: !Text,
-    pattern :: !Text
-  }
+      { input :: !Text,
+        pattern :: !Text
+      }
+  | InvalidComplexClass {input :: !Text}
+  | InvalidComplexTypeNoPeriod {input :: !Text}
   deriving stock (Eq)
   deriving (Show) via FromTextShow Error
 
----- SMART CONSTRUCTORS ---------------------------------------------------------------------------
+---- SMART CONSTRUCTORS / PARSERS -----------------------------------------------------------------
 
 mkName :: Text -> Either Error Name
 mkName t
@@ -217,6 +234,33 @@ mkName t
   | otherwise = Left (InvalidName t namePattern)
   where
     namePattern = "^[a-zA-Z0-9]([a-zA-Z0-9_]*[a-zA-Z0-9])?$"
+
+mkComplexType :: Text -> Either Error ComplexType
+mkComplexType txt =
+  let p = T.strip txt
+      (isArray, inner) =
+        if T.isPrefixOf "array<" p && T.isSuffixOf ">" p
+          then (True, T.init $ T.drop 6 p)
+          else (False, p)
+   in case T.breakOn "." inner of
+        (clazzTxt, dotNameTxt)
+          | T.null dotNameTxt -> Left $ InvalidComplexTypeNoPeriod p
+          | otherwise -> do
+              clazz <- mkComplexClass clazzTxt
+              let nameTxt = T.tail dotNameTxt
+              name <- mkName nameTxt
+              pure $ ComplexType isArray clazz name
+
+mkComplexClass :: Text -> Either Error ComplexClass
+mkComplexClass txt =
+  case txt of
+    "typedef" -> Right CTypedef
+    "enum" -> Right CEnum
+    "bitflag" -> Right CBitFlag
+    "struct" -> Right CStruct
+    "function_type" -> Right CFunction
+    "object" -> Right CObject
+    _ -> Left (InvalidComplexClass txt)
 
 ---- QUASIQUOTERS ---------------------------------------------------------------------------------
 
@@ -241,6 +285,10 @@ nameQQ =
 instance TextShow Error where
   showb (InvalidName input pattern) =
     "Invalid name '" <> showb input <> "': must match pattern " <> showb pattern
+  showb (InvalidComplexClass input) =
+    "Invalid ComplexType; class not recognised: '" <> showb input <> "'"
+  showb (InvalidComplexTypeNoPeriod input) =
+    "Invalid ComplexType; no period found: '" <> showb input <> "'"
 
 ---- JSON / YAML INSTANCES ------------------------------------------------------------------------
 
@@ -435,6 +483,22 @@ instance FromJSON Pointer where
     "mutable" -> pure PtrMutable
     p -> failText $ "Unknown pointer value: " <> p
   parseJSON _ = failText "Pointer must be a JSON string"
+
+instance ToJSON ComplexType where
+  toJSON (ComplexType a c n) =
+    let (prefix, suffix) = if a then ("array<", ">") else (T.empty, T.empty)
+        clazz = case c of
+          CTypedef -> "typedef"
+          CEnum -> "enum"
+          CBitFlag -> "bitflag"
+          CStruct -> "struct"
+          CFunction -> "function_type"
+          CObject -> "object"
+        name = unName n
+     in String $ prefix <> clazz <> "." <> name <> suffix
+
+instance FromJSON ComplexType where
+  parseJSON = parseWith mkComplexType
 
 ---- HELPER FUNCTIONS -----------------------------------------------------------------------------
 

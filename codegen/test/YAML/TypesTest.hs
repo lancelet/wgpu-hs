@@ -24,6 +24,8 @@ import YAML.Types
     BaseType (..),
     BitFlag (..),
     BitFlagEntry (..),
+    ComplexClass (..),
+    ComplexType (..),
     Constant (..),
     Enum (..),
     EnumEntry (EnumEntry, NullEnumEntry),
@@ -55,6 +57,7 @@ tests =
       testProperty "ArrayType roundtrip" prop_array_type_roundtrip,
       testProperty "PrimitiveType roundtrip" prop_primitive_type_roundtrip,
       testProperty "Pointer roundtrip" prop_pointer_roundtrip,
+      testProperty "ComplexType roundtrip" prop_complex_type_roundtrip,
       testCase "Example: Constant parse" test_constant_parse,
       testCase "Example: Constant extra fields are rejected" test_constant_extra_fields_rejected,
       testCase "Example: Enum variant parse" test_enum_variant_parse,
@@ -147,6 +150,21 @@ genPrimitiveType =
 genPointer :: Gen Pointer
 genPointer = Gen.choice [pure PtrImmutable, pure PtrMutable]
 
+genComplexClass :: Gen ComplexClass
+genComplexClass =
+  Gen.choice $
+    pure
+      <$> [ CTypedef,
+            CEnum,
+            CBitFlag,
+            CStruct,
+            CFunction,
+            CObject
+          ]
+
+genComplexType :: Gen ComplexType
+genComplexType = ComplexType <$> Gen.bool <*> genComplexClass <*> genName
+
 ---- PROPERTIES -----------------------------------------------------------------------------------
 
 prop_value64_roundtrip :: Property
@@ -181,6 +199,9 @@ prop_primitive_type_roundtrip = mkPropRoundtrip genPrimitiveType
 
 prop_pointer_roundtrip :: Property
 prop_pointer_roundtrip = mkPropRoundtrip genPointer
+
+prop_complex_type_roundtrip :: Property
+prop_complex_type_roundtrip = mkPropRoundtrip genComplexType
 
 ---- UNIT TESTS -----------------------------------------------------------------------------------
 
